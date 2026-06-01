@@ -120,7 +120,9 @@ npx wrangler r2 bucket create loft-preview
 - `loft` is where your real photos/videos live.
 - `loft-preview` is only used if you ever run `wrangler dev --remote`; create it anyway so the config is valid.
 
-> R2 is what makes Loft cheap: **serving files out of R2 has no bandwidth fee.** You may be asked to enable R2 on your account the first time (it's free to enable).
+> **One-time setup:** the first time you use R2, Cloudflare makes you **add a payment method** to activate the R2 subscription. This does **not** mean you'll be charged — R2 has a **forever-free tier of 10 GB of storage** (plus 1M writes / 10M reads per month), and **egress is always free**. You only pay if you exceed those, and then only pennies (see [What it costs](#what-it-costs)). Tip: set a billing alert in the Cloudflare dashboard for peace of mind.
+>
+> R2 being egress-free is exactly what makes Loft cheap — browsing your own photos never adds a bandwidth bill.
 
 ### Step 3 — Create the database (D1) and paste its ID
 
@@ -248,7 +250,18 @@ If a change adds a new database migration, also run `npm run db:migrate:remote` 
 
 For a single user with a personal library, Loft typically lands at **$0–3/month**:
 
-- **Workers, D1, Access** — comfortably within the free tiers at this scale.
-- **R2** — you pay for storage (a few cents per GB-month) and operations, but **not** for serving files. Browsing your own photos doesn't add a bandwidth bill.
+- **Workers, D1, Access** — comfortably within the free tiers at this scale, and **no payment method required** to use them.
+- **R2** — **does require a payment method to activate** (a one-time step when you create your first bucket), but it has a generous free tier and bills only for what you go over:
+
+  | R2 resource | Free each month | Cost beyond free |
+  |---|---|---|
+  | Storage | **10 GB** | $0.015 / GB-month |
+  | Uploads (Class A ops) | 1 million | $4.50 / million |
+  | Views (Class B ops) | 10 million | $0.36 / million |
+  | Egress (bandwidth out) | **Always free** | — |
+
+  So a library **under ~10 GB costs $0**. Above that, only the storage overage is billed — e.g. a **50 GB** library ≈ **$0.60/month**, a **100 GB** library ≈ **$1.35/month**. Egress being free means browsing your photos never adds a bandwidth bill, and Loft edge-caches images so repeat views rarely even hit R2.
+
+  > 💡 Set a **billing alert** in the Cloudflare dashboard so you're notified well before any meaningful charge.
 
 See **[ARCHITECTURE.md](ARCHITECTURE.md)** if you want the reasoning behind these choices and how the pieces fit together.
