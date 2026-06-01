@@ -41,6 +41,8 @@ A personal, single-user **photo + video gallery** ("loft") that runs almost enti
 
 **One Worker, same origin.** The frontend static assets and the API live in the same Worker so the browser only ever talks to one domain. This is deliberate — splitting into Cloudflare Pages + a separate API Worker reintroduces the cross-site cookie problem that breaks Cloudflare Access on iOS Safari.
 
+> 📖 **Want the reasoning behind every choice** — why Cloudflare, why one Worker, why Hono, why the browser does the image work, and how the pieces connect? See **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
+
 | Layer | Tech |
 |---|---|
 | Storage | Cloudflare R2 (single bucket; `orig/`, `preview/`, `thumb/` are key prefixes) |
