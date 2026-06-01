@@ -1,0 +1,11 @@
+# Local development variables for the Worker.
+#
+# Copy this file to `.dev.vars` in the same folder before running `npm run dev:api`:
+#
+#     cp workers/.dev.vars.example workers/.dev.vars
+#
+# `.dev.vars` is gitignored (never committed). Setting ENV=dev makes the Worker
+# SKIP the Cloudflare Access auth check, so you can browse and upload locally
+# without logging in. Without this, local API requests return 401 Unauthorized.
+
+ENV=dev

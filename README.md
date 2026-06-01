@@ -4,6 +4,11 @@ A personal, single-user **photo + video gallery** ("loft") that runs almost enti
 
 > Loft is intentionally **single-user and private**: the whole app sits behind Cloudflare Access locked to one email. It is not a multi-tenant product — it's a self-hosted loft for *your* memories.
 
+### 📚 Documentation
+
+- **[Getting Started](docs/GETTING_STARTED.md)** — go from clone → running locally → your own private deployment, step by step (start here).
+- **[Architecture & Design Decisions](docs/ARCHITECTURE.md)** — *why* this stack and cloud, and how the pieces connect.
+
 <!-- Add a screenshot or GIF here once you have one:
 ![Loft home timeline](docs/screenshot-home.png)
 -->
@@ -79,6 +84,10 @@ Miniflare simulates R2 + D1 locally, so you can develop fully offline without to
 
 ```bash
 npm install
+
+# Tell the local Worker it's in dev mode (skips the Access login wall).
+# Without this, local API requests return 401. The file is gitignored.
+cp workers/.dev.vars.example workers/.dev.vars
 
 # Apply DB migrations to the local (simulated) D1
 npm run db:migrate:local
