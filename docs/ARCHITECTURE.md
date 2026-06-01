@@ -86,6 +86,25 @@ Loft separates **blobs** from **metadata**, the standard pattern for media apps:
 
 Why not stuff everything in one place? Object stores can't query ("give me June 2024, newest first") and databases shouldn't hold multi-megabyte blobs. Splitting them lets each do what it's good at: **R2 streams big files cheaply, D1 answers queries.** The `/img/*` routes read from R2; the `/api/*` routes read/write D1.
 
+### The R2 cost model — storage vs. operations
+
+R2 bills three separate things, and it's worth knowing which one actually matters, because the architecture is shaped to keep the other two near zero.
+
+| What R2 charges for | Free each month | Beyond free | Does it grow for Loft? |
+|---|---|---|---|
+| **Storage** — bytes at rest | 10 GB | $0.015 / GB-month | **Yes** — the only real lever. |
+| **Class A operations** — *writes* (`PutObject`, `ListObjects`, multipart) | 1 million | $4.50 / million | Barely. |
+| **Class B operations** — *reads* (`GetObject`, `HeadObject`) | 10 million | $0.36 / million | Barely. |
+| **Egress** — bytes served out | **Always free** | — | Never. |
+
+"Operations" are simply **API calls against the bucket**, billed per call (not per byte). They split into two classes:
+
+- **Class A = state changes (writes).** In Loft, one upload is **3 Class A ops** — it writes `orig/`, `preview/`, and `thumb/`. To exhaust the 1M free writes you'd have to upload ~330,000 items in a single month.
+- **Class B = reads.** Serving an image is **1 Class B op** — but only on a **cache miss**. Because every blob is immutable and `/img/*` is edge-cached, a photo viewed 100 times is **1 op, not 100**: the edge cache absorbs the other 99. To exhaust the 10M free reads you'd need ten million cache-miss loads in a month.
+- **Deletes are free** — the daily purge cron costs nothing in operations.
+
+So the immutable-keys + edge-cache design isn't only about speed; it's what collapses Class B operations to near zero. **Storage is the single cost that scales with your library** — and even that is free under 10 GB, then ~$0.015/GB-month (a 100 GB library ≈ **$1.35/month**). Operations and egress stay effectively free for one person. *(The deployment-side view of this — free tiers per service, a billing table — is in [GETTING_STARTED.md → What it costs](GETTING_STARTED.md#what-it-costs).)*
+
 ## 5. Why the browser does the image processing
 
 When you upload, the **browser** — not the Worker — generates the thumbnail and preview and reads EXIF:
