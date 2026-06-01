@@ -1,0 +1,24 @@
+{
+  "name": "@loft/workers",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --local --persist-to .wrangler/state",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "db:migrate:local": "wrangler d1 migrations apply loft-db --local --persist-to .wrangler/state",
+    "db:migrate:remote": "wrangler d1 migrations apply loft-db --remote",
+    "db:console:local": "wrangler d1 execute loft-db --local --persist-to .wrangler/state --command",
+    "db:console:remote": "wrangler d1 execute loft-db --remote --command"
+  },
+  "dependencies": {
+    "@loft/shared": "*",
+    "hono": "^4.6.11"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241127.0",
+    "typescript": "^5.6.3",
+    "wrangler": "^4.94.0"
+  }
+}

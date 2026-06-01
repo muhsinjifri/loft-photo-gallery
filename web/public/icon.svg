@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- full-bleed background (OS will mask/round) -->
+  <rect width="512" height="512" fill="#F4EFE6"/>
+  <!-- filled loft / house silhouette with eaves -->
+  <path d="M150 410 L150 248 L104 248 L256 122 L408 248 L362 248 L362 410 Z"
+        fill="#2A2620" stroke="#2A2620" stroke-width="18" stroke-linejoin="round"/>
+  <!-- terracotta round window -->
+  <circle cx="256" cy="318" r="46" fill="#C96442"/>
+</svg>

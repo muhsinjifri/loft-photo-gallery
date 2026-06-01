@@ -1,0 +1,77 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+    --c-paper: #F4EFE6;
+    --c-accent: #6B8266;
+    --c-highlight: #C8964E;
+    --c-ink-trace: #B5A893;
+  }
+
+  * { box-sizing: border-box; }
+  html, body, #root { margin: 0; padding: 0; height: 100%; }
+
+  body {
+    background-color: var(--c-paper);
+    /* Soft warm wash on a clean paper surface — no texture noise */
+    background-image:
+      radial-gradient(at top left, rgba(255, 250, 240, 0.6), transparent 50%),
+      radial-gradient(at bottom right, rgba(232, 220, 200, 0.4), transparent 55%);
+    background-attachment: fixed;
+    color: #2A2620;
+    font-family: 'Fraunces', 'Iowan Old Style', 'Hoefler Text', Georgia, serif;
+    font-size: 15px;
+    line-height: 1.55;
+    font-feature-settings: "ss01", "ss02", "kern", "liga";
+    font-optical-sizing: auto;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background: rgba(107, 130, 102, 0.16);
+    color: #2A2620;
+  }
+
+  a { color: #4F6649; text-decoration: none; }
+
+  *::-webkit-scrollbar { width: 10px; height: 10px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+  *::-webkit-scrollbar-thumb {
+    background: var(--c-ink-trace);
+    border-radius: 999px;
+    border: 2px solid var(--c-paper);
+  }
+  *::-webkit-scrollbar-thumb:hover { background: #8A7F71; }
+}
+
+@layer components {
+  /* Torn-paper sidebar edge — sits on .desktop-sidebar */
+  .torn-edge::after {
+    content: '';
+    position: absolute;
+    top: 0; right: -1px; bottom: 0;
+    width: 2px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 2 200' preserveAspectRatio='none'%3E%3Cpath d='M1 0 Q 0.4 50, 1 100 T 1 200' stroke='%23B5A893' stroke-width='0.6' fill='none' opacity='0.5'/%3E%3C/svg%3E");
+    background-repeat: repeat-y;
+    background-size: 2px 200px;
+    pointer-events: none;
+  }
+
+  /* Hand-drawn ink underline beneath active nav item */
+  .nav-link-active::after {
+    content: '';
+    position: absolute;
+    left: 10px;
+    right: 14px;
+    bottom: 2px;
+    height: 5px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 5' preserveAspectRatio='none'%3E%3Cpath d='M2 2.5 Q 12 0.8, 22 2.5 T 42 2.5 T 62 2.5 T 82 2.5 T 98 2.5' stroke='%236B8266' stroke-width='1.4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    pointer-events: none;
+  }
+}

@@ -1,0 +1,33 @@
+name = "loft-api"
+main = "src/index.ts"
+compatibility_date = "2024-11-27"
+compatibility_flags = ["nodejs_compat"]
+
+# account_id is read from the CLOUDFLARE_ACCOUNT_ID env var, or auto-detected
+# from `wrangler login`. Uncomment + set it only if you have multiple accounts:
+# account_id = "<your-cloudflare-account-id>"
+
+[vars]
+ENV = "prod"
+# The single email allowed past Cloudflare Access. Set this to your own.
+ALLOWED_EMAIL = "you@example.com"
+
+[assets]
+directory = "../web/dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "loft"
+preview_bucket_name = "loft-preview"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "loft-db"
+# Paste the id printed by `wrangler d1 create loft-db` here.
+database_id = "YOUR_D1_DATABASE_ID"
+migrations_dir = "migrations"
+
+[triggers]
+crons = ["0 3 * * *"]

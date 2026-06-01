@@ -1,0 +1,20 @@
+{
+  "name": "loft",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "shared",
+    "workers",
+    "web"
+  ],
+  "scripts": {
+    "dev:api": "npm --workspace workers run dev",
+    "dev:web": "npm --workspace web run dev",
+    "build:web": "npm --workspace web run build",
+    "deploy:api": "npm --workspace workers run deploy",
+    "deploy": "npm run build:web && npm --workspace workers run deploy",
+    "db:migrate:local": "npm --workspace workers run db:migrate:local",
+    "db:migrate:remote": "npm --workspace workers run db:migrate:remote",
+    "typecheck": "npm --workspaces --if-present run typecheck"
+  }
+}
