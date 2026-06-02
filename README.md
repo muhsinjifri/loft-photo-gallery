@@ -4,14 +4,14 @@ A personal, single-user **photo + video gallery** ("loft") that runs almost enti
 
 > Loft is intentionally **single-user and private**: the whole app sits behind Cloudflare Access locked to one email. It is not a multi-tenant product — it's a self-hosted loft for *your* memories.
 
+![Loft home timeline](docs/screenshot-home.png)
+
+<sub>*The masonry timeline. (Sample library blurred for privacy.)*</sub>
+
 ### 📚 Documentation
 
 - **[Getting Started](docs/GETTING_STARTED.md)** — go from clone → running locally → your own private deployment, step by step (start here).
 - **[Architecture & Design Decisions](docs/ARCHITECTURE.md)** — *why* this stack and cloud, and how the pieces connect.
-
-<!-- Add a screenshot or GIF here once you have one:
-![Loft home timeline](docs/screenshot-home.png)
--->
 
 ## Highlights
 
