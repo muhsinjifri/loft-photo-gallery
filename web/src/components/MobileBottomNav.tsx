@@ -1,5 +1,4 @@
 import { NavLink } from "react-router-dom";
-import { motion } from "framer-motion";
 import { Images, CalendarDays, FolderOpen, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -10,35 +9,23 @@ interface ItemProps {
   label: string;
 }
 
+/**
+ * An iOS tab bar: the selected tab is marked by tinting the glyph and label in
+ * the accent, never by a pill or a background. Nothing moves between tabs.
+ */
 function Item({ to, end, icon, label }: ItemProps) {
   return (
     <NavLink
       to={to}
       end={end}
       className={({ isActive }) =>
-        `relative flex-1 flex flex-col items-center justify-center gap-1 py-2 transition-colors ${
-          isActive ? "text-ink" : "text-ink-fade"
+        `flex-1 flex flex-col items-center justify-center gap-[3px] pt-2 pb-1.5 transition-colors ${
+          isActive ? "text-accent" : "text-ink-fade"
         }`
       }
     >
-      {({ isActive }) => (
-        <>
-          {isActive && (
-            <motion.span
-              layoutId="mobileNavPill"
-              className="absolute inset-x-3 top-1 bottom-1 rounded-full bg-accent/10 -z-10"
-              transition={{ type: "spring", stiffness: 380, damping: 30 }}
-            />
-          )}
-          <span className={isActive ? "text-accent-deep" : "text-ink-fade"}>{icon}</span>
-          <span
-            className={`text-[10.5px] tracking-wide ${isActive ? "font-medium" : ""}`}
-            style={{ fontFamily: "var(--font-serif, serif)" }}
-          >
-            {label}
-          </span>
-        </>
-      )}
+      {icon}
+      <span className="text-[10px] font-medium tracking-[0.01em]">{label}</span>
     </NavLink>
   );
 }
@@ -48,21 +35,16 @@ export function MobileBottomNav() {
     <nav
       role="navigation"
       aria-label="Primary"
-      className="
-        md:hidden fixed bottom-0 inset-x-0 z-30
-        flex items-stretch
-        backdrop-blur-md
-      "
+      className="material md:hidden fixed bottom-0 inset-x-0 z-30 flex items-stretch"
       style={{
-        background: "rgba(244,239,230,0.94)",
-        borderTop: "1px solid rgba(58,50,40,0.10)",
+        boxShadow: "inset 0 1px 0 0 rgb(var(--line) / var(--line-a))",
         paddingBottom: "env(safe-area-inset-bottom, 0px)",
       }}
     >
-      <Item to="/" end icon={<Images className="w-[22px] h-[22px]" />} label="Photos" />
-      <Item to="/calendar" icon={<CalendarDays className="w-[22px] h-[22px]" />} label="Calendar" />
-      <Item to="/albums" icon={<FolderOpen className="w-[22px] h-[22px]" />} label="Albums" />
-      <Item to="/trash" icon={<Trash2 className="w-[22px] h-[22px]" />} label="Trash" />
+      <Item to="/" end icon={<Images className="w-[23px] h-[23px]" />} label="Photos" />
+      <Item to="/calendar" icon={<CalendarDays className="w-[23px] h-[23px]" />} label="Calendar" />
+      <Item to="/albums" icon={<FolderOpen className="w-[23px] h-[23px]" />} label="Albums" />
+      <Item to="/trash" icon={<Trash2 className="w-[23px] h-[23px]" />} label="Trash" />
     </nav>
   );
 }

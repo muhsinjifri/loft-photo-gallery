@@ -256,7 +256,7 @@ export function Viewer({ photos, index, onIndexChange, onClose }: Props) {
             style={{ opacity: overlayOpacity as unknown as number }}
             className="fixed inset-0 z-[100]"
           >
-            <div className="absolute inset-0" style={{ background: "rgba(26, 22, 18, 0.96)" }} />
+            <div className="absolute inset-0" style={{ background: "rgb(0 0 0 / 0.94)", backdropFilter: "blur(20px)" }} />
           </motion.div>
         </Dialog.Overlay>
 
@@ -285,10 +285,11 @@ export function Viewer({ photos, index, onIndexChange, onClose }: Props) {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -8 }}
                   transition={{ duration: 0.18 }}
-                  className="absolute top-0 inset-x-0 z-10 flex items-center gap-2 px-3 sm:px-5 py-3"
+                  className="absolute top-0 inset-x-0 z-10 flex items-center gap-2 px-3 sm:px-4 py-2.5"
                   style={{
-                    background:
-                      "linear-gradient(to bottom, rgba(20,16,12,0.65), rgba(20,16,12,0))",
+                    background: "rgb(0 0 0 / 0.5)",
+                    backdropFilter: "saturate(180%) blur(24px)",
+                    WebkitBackdropFilter: "saturate(180%) blur(24px)",
                   }}
                 >
                   <button
@@ -297,20 +298,20 @@ export function Viewer({ photos, index, onIndexChange, onClose }: Props) {
                     aria-label="Close"
                     onClick={onClose}
                     style={{
-                      background: "rgba(245,235,215,0.08)",
-                      color: "#FAF5EC",
-                      borderColor: "rgba(245,235,215,0.18)",
+                      background: "rgb(255 255 255 / 0.14)",
+                      color: "#FFFFFF",
+                      borderColor: "transparent",
                     }}
                   >
                     <X className="w-4 h-4" />
                   </button>
                   <div
-                    className="flex-1 truncate font-serif italic text-sm"
-                    style={{ color: "rgba(245,235,215,0.78)" }}
+                    className="flex-1 truncate text-footnote font-medium"
+                    style={{ color: "rgb(255 255 255 / 0.92)" }}
                   >
                     {photo.filename}
                     {!mine && partner && (
-                      <span style={{ color: "rgba(245,235,215,0.5)" }}>
+                      <span style={{ color: "rgb(255 255 255 / 0.55)" }}>
                         {" "}
                         · {displayNameFor(photo.owner_id)}
                       </span>
@@ -323,9 +324,9 @@ export function Viewer({ photos, index, onIndexChange, onClose }: Props) {
                     onClick={() => setInfoOpen((v) => !v)}
                     aria-pressed={infoOpen}
                     style={{
-                      background: infoOpen ? "rgba(107,130,102,0.22)" : "rgba(245,235,215,0.08)",
-                      color: "#FAF5EC",
-                      borderColor: "rgba(245,235,215,0.18)",
+                      background: infoOpen ? "rgb(var(--accent))" : "rgb(255 255 255 / 0.14)",
+                      color: "#FFFFFF",
+                      borderColor: "transparent",
                     }}
                   >
                     <Info className="w-4 h-4" />
@@ -337,9 +338,9 @@ export function Viewer({ photos, index, onIndexChange, onClose }: Props) {
                       aria-label="Add to album"
                       onClick={() => setAlbumPickerOpen(true)}
                       style={{
-                        background: "rgba(245,235,215,0.08)",
-                        color: "#FAF5EC",
-                        borderColor: "rgba(245,235,215,0.18)",
+                        background: "rgb(255 255 255 / 0.14)",
+                        color: "#FFFFFF",
+                        borderColor: "transparent",
                       }}
                     >
                       <FolderPlus className="w-4 h-4" />
@@ -351,9 +352,9 @@ export function Viewer({ photos, index, onIndexChange, onClose }: Props) {
                     aria-label="Download"
                     className="btn btn-icon inline-flex items-center justify-center"
                     style={{
-                      background: "rgba(245,235,215,0.08)",
-                      color: "#FAF5EC",
-                      borderColor: "rgba(245,235,215,0.18)",
+                      background: "rgb(255 255 255 / 0.14)",
+                      color: "#FFFFFF",
+                      borderColor: "transparent",
                     }}
                   >
                     <Download className="w-4 h-4" />
@@ -375,9 +376,9 @@ export function Viewer({ photos, index, onIndexChange, onClose }: Props) {
                       aria-label="Move to trash"
                       className="btn btn-icon"
                       style={{
-                        background: "rgba(245,235,215,0.08)",
-                        color: "#FAF5EC",
-                        borderColor: "rgba(245,235,215,0.18)",
+                        background: "rgb(255 255 255 / 0.14)",
+                        color: "#FFFFFF",
+                        borderColor: "transparent",
                       }}
                     >
                       <Trash2 className="w-4 h-4" />
@@ -392,9 +393,9 @@ export function Viewer({ photos, index, onIndexChange, onClose }: Props) {
                           aria-disabled="true"
                           className="btn btn-icon hidden sm:inline-flex opacity-40 cursor-not-allowed"
                           style={{
-                            background: "rgba(245,235,215,0.08)",
-                            color: "#FAF5EC",
-                            borderColor: "rgba(245,235,215,0.18)",
+                            background: "rgb(255 255 255 / 0.14)",
+                            color: "#FFFFFF",
+                            borderColor: "transparent",
                           }}
                         >
                           <Trash2 className="w-4 h-4" />
@@ -404,8 +405,8 @@ export function Viewer({ photos, index, onIndexChange, onClose }: Props) {
                         <Tooltip.Content
                           side="bottom"
                           sideOffset={6}
-                          className="z-[200] px-2 py-1 rounded font-serif italic text-[12.5px] text-paper-tint"
-                          style={{ background: "rgba(42,38,32,0.92)" }}
+                          className="z-[200] px-2 py-1 rounded-md text-[12px] text-white"
+                          style={{ background: "rgb(50 50 52 / 0.96)" }}
                         >
                           only {displayNameFor(photo.owner_id)} can delete this
                         </Tooltip.Content>
@@ -471,9 +472,9 @@ export function Viewer({ photos, index, onIndexChange, onClose }: Props) {
                     exit={{ opacity: 0 }}
                     className="hidden sm:flex absolute left-3 top-1/2 -translate-y-1/2 w-11 h-11 items-center justify-center rounded-full"
                     style={{
-                      background: "rgba(245,235,215,0.10)",
-                      color: "#FAF5EC",
-                      border: "1px solid rgba(245,235,215,0.20)",
+                      background: "rgb(255 255 255 / 0.14)",
+                      color: "#FFFFFF",
+                      border: "1px solid rgb(var(--ink) / 0.20)",
                     }}
                   >
                     <ChevronLeft className="w-5 h-5" />
@@ -490,9 +491,9 @@ export function Viewer({ photos, index, onIndexChange, onClose }: Props) {
                     exit={{ opacity: 0 }}
                     className="hidden sm:flex absolute right-3 top-1/2 -translate-y-1/2 w-11 h-11 items-center justify-center rounded-full"
                     style={{
-                      background: "rgba(245,235,215,0.10)",
-                      color: "#FAF5EC",
-                      border: "1px solid rgba(245,235,215,0.20)",
+                      background: "rgb(255 255 255 / 0.14)",
+                      color: "#FFFFFF",
+                      border: "1px solid rgb(var(--ink) / 0.20)",
                     }}
                   >
                     <ChevronRight className="w-5 h-5" />
@@ -509,10 +510,12 @@ export function Viewer({ photos, index, onIndexChange, onClose }: Props) {
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 8 }}
-                  className="absolute bottom-0 inset-x-0 z-10 p-3 sm:p-4 flex items-center justify-center"
+                  className="absolute bottom-0 inset-x-0 z-10 p-2.5 sm:p-3 flex items-center justify-center"
                   style={{
-                    background:
-                      "linear-gradient(to top, rgba(20,16,12,0.65), rgba(20,16,12,0))",
+                    background: "rgb(0 0 0 / 0.5)",
+                    backdropFilter: "saturate(180%) blur(24px)",
+                    WebkitBackdropFilter: "saturate(180%) blur(24px)",
+                    paddingBottom: "max(env(safe-area-inset-bottom, 0px), 10px)",
                   }}
                 >
                   {/* Mobile dots */}
@@ -532,7 +535,7 @@ export function Viewer({ photos, index, onIndexChange, onClose }: Props) {
                             onClick={() => onIndexChange(i)}
                             className="w-1.5 h-1.5 rounded-full transition-all"
                             style={{
-                              background: active ? "#FAF5EC" : "rgba(245,235,215,0.35)",
+                              background: active ? "#FFFFFF" : "rgb(255 255 255 / 0.35)",
                               transform: active ? "scale(1.3)" : "scale(1)",
                             }}
                           />
@@ -559,7 +562,7 @@ export function Viewer({ photos, index, onIndexChange, onClose }: Props) {
                             style={{
                               width: active ? 56 : 44,
                               height: active ? 56 : 44,
-                              borderColor: active ? "#FAF5EC" : "rgba(245,235,215,0.18)",
+                              borderColor: active ? "rgb(var(--ink))" : "rgb(255 255 255 / 0.22)",
                               opacity: active ? 1 : 0.72,
                             }}
                             aria-label={p.filename}
@@ -591,28 +594,28 @@ export function Viewer({ photos, index, onIndexChange, onClose }: Props) {
                     absolute z-20 paper-card
                     left-3 right-3 bottom-20 md:left-auto md:right-4 md:top-20 md:bottom-auto md:w-[320px]
                   "
-                  style={{ background: "rgba(250,245,236,0.97)" }}
+                  style={{ background: "rgb(28 28 30 / 0.86)", backdropFilter: "saturate(180%) blur(30px)", WebkitBackdropFilter: "saturate(180%) blur(30px)", color: "#FFF" }}
                 >
-                  <h3 className="m-0 font-serif italic text-base text-ink-soft pb-2 mb-2 border-b border-line">
+                  <h3 className="m-0 text-footnote font-semibold pb-2 mb-2" style={{ borderBottom: "1px solid rgb(255 255 255 / 0.14)", color: "rgb(255 255 255 / 0.6)" }}>
                     about this picture
                   </h3>
                   <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-[13px]">
-                    <dt className="text-ink-fade italic">taken</dt>
-                    <dd className="text-ink-soft m-0">{formatDate(photo.taken_at)}</dd>
-                    <dt className="text-ink-fade italic">uploaded</dt>
-                    <dd className="text-ink-soft m-0">{formatDate(photo.uploaded_at)}</dd>
-                    <dt className="text-ink-fade italic">size</dt>
-                    <dd className="text-ink-soft m-0">{formatBytes(photo.size)}</dd>
-                    <dt className="text-ink-fade italic">dimensions</dt>
-                    <dd className="text-ink-soft m-0">
+                    <dt style={{ color: "rgb(255 255 255 / 0.55)" }}>taken</dt>
+                    <dd className="m-0" style={{ color: "#FFF" }}>{formatDate(photo.taken_at)}</dd>
+                    <dt style={{ color: "rgb(255 255 255 / 0.55)" }}>uploaded</dt>
+                    <dd className="m-0" style={{ color: "#FFF" }}>{formatDate(photo.uploaded_at)}</dd>
+                    <dt style={{ color: "rgb(255 255 255 / 0.55)" }}>size</dt>
+                    <dd className="m-0" style={{ color: "#FFF" }}>{formatBytes(photo.size)}</dd>
+                    <dt style={{ color: "rgb(255 255 255 / 0.55)" }}>dimensions</dt>
+                    <dd className="m-0" style={{ color: "#FFF" }}>
                       {photo.width && photo.height ? `${photo.width} × ${photo.height}` : "—"}
                     </dd>
-                    <dt className="text-ink-fade italic">type</dt>
-                    <dd className="text-ink-soft m-0">{photo.mime}</dd>
+                    <dt style={{ color: "rgb(255 255 255 / 0.55)" }}>type</dt>
+                    <dd className="m-0" style={{ color: "#FFF" }}>{photo.mime}</dd>
                     {partner && (
                       <>
-                        <dt className="text-ink-fade italic">added by</dt>
-                        <dd className="text-ink-soft m-0">{displayNameFor(photo.owner_id)}</dd>
+                        <dt style={{ color: "rgb(255 255 255 / 0.55)" }}>added by</dt>
+                        <dd className="m-0" style={{ color: "#FFF" }}>{displayNameFor(photo.owner_id)}</dd>
                       </>
                     )}
                     {exifSummary &&
@@ -621,8 +624,8 @@ export function Viewer({ photos, index, onIndexChange, onClose }: Props) {
                         const model = exifSummary.Model as string | undefined;
                         return make || model ? (
                           <>
-                            <dt className="text-ink-fade italic">camera</dt>
-                            <dd className="text-ink-soft m-0">
+                            <dt style={{ color: "rgb(255 255 255 / 0.55)" }}>camera</dt>
+                            <dd className="m-0" style={{ color: "#FFF" }}>
                               {[make, model].filter(Boolean).join(" ")}
                             </dd>
                           </>
@@ -655,7 +658,7 @@ export function Viewer({ photos, index, onIndexChange, onClose }: Props) {
             <AlertDialog.Title className="font-display text-3xl text-ink m-0 mb-1">
               Move to trash?
             </AlertDialog.Title>
-            <AlertDialog.Description className="font-serif italic text-[14px] text-ink-fade m-0 mb-4">
+            <AlertDialog.Description className="text-[14px] text-ink-fade m-0 mb-4">
               It will rest there for thirty days before it's gone.
             </AlertDialog.Description>
             <div className="flex items-center justify-end gap-2">

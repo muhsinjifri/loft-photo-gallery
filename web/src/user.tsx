@@ -158,7 +158,7 @@ export function RequireUser() {
   if (status === "loading") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-paper">
-        <span className="font-serif italic text-ink-fade text-sm">opening the loft…</span>
+        <span className="text-ink-fade text-sm">opening the loft…</span>
       </div>
     );
   }

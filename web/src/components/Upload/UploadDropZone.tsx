@@ -60,18 +60,18 @@ export function UploadDropZone() {
           exit={{ opacity: 0 }}
           transition={{ duration: 0.18 }}
           className="hidden md:flex fixed inset-0 z-[90] pointer-events-none items-center justify-center"
-          style={{ background: "rgba(244, 239, 230, 0.78)", backdropFilter: "blur(2px)" }}
+          style={{ background: "rgb(var(--room) / 0.86)", backdropFilter: "blur(2px)" }}
         >
           <div
             className="rounded-lg px-12 py-10 flex flex-col items-center gap-3 text-ink-soft"
             style={{
-              border: "2px dashed rgba(107,130,102,0.58)",
-              background: "rgba(250,245,236,0.85)",
+              border: "2px dashed rgb(var(--accent) / 0.6)",
+              background: "rgb(var(--raised) / 0.9)",
             }}
           >
             <UploadDropHint className="w-24 h-24 text-ink-soft" />
             <p className="font-display text-3xl text-ink m-0">drop them in</p>
-            <p className="italic text-sm text-ink-fade m-0">we'll handle the rest</p>
+            <p className="text-sm text-ink-fade m-0">we'll handle the rest</p>
           </div>
         </motion.div>
       )}

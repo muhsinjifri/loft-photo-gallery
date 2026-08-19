@@ -1,6 +1,5 @@
 import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
-import { Underline } from "./flourishes";
 
 interface Shortcut {
   keys: string[];
@@ -42,9 +41,9 @@ function Key({ children }: { children: React.ReactNode }) {
     <kbd
       className="inline-block min-w-[24px] text-center px-1.5 py-0.5 rounded text-[12px] font-mono text-ink-soft"
       style={{
-        background: "var(--c-paper, #EDE5D6)",
-        border: "1px solid rgba(58,50,40,0.18)",
-        boxShadow: "0 1px 0 rgba(60,50,40,0.12)",
+        background: "rgb(var(--well))",
+        border: "1px solid rgb(var(--line) / var(--line-strong-a))",
+        boxShadow: "0 1px 0 rgb(0 0 0 / calc(var(--shadow-a) * 0.5))",
       }}
     >
       {children}
@@ -71,7 +70,6 @@ export function ShortcutsDialog({ open, onOpenChange }: Props) {
               <Dialog.Title className="font-display text-3xl text-ink m-0 leading-none">
                 Shortcuts
               </Dialog.Title>
-              <Underline className="block w-24 h-1.5 mt-1 text-accent/60" />
             </div>
             <Dialog.Close asChild>
               <button type="button" className="btn btn-icon" aria-label="Close">
@@ -79,14 +77,14 @@ export function ShortcutsDialog({ open, onOpenChange }: Props) {
               </button>
             </Dialog.Close>
           </div>
-          <Dialog.Description className="font-serif italic text-[13.5px] text-ink-fade m-0 mb-4">
+          <Dialog.Description className="text-[13.5px] text-ink-fade m-0 mb-4">
             a few quiet ways to move through the loft.
           </Dialog.Description>
 
           <div className="space-y-5">
             {SECTIONS.map((sec) => (
               <section key={sec.title}>
-                <h3 className="font-serif italic text-[13px] text-ink-fade font-medium lowercase tracking-[0.04em] m-0 mb-2">
+                <h3 className="text-[13px] text-ink-fade font-medium lowercase tracking-[0.04em] m-0 mb-2">
                   {sec.title}
                 </h3>
                 <ul className="m-0 p-0 list-none divide-y divide-line">

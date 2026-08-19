@@ -26,8 +26,8 @@ export function UploadFAB() {
         onClick={() => inputRef.current?.click()}
         whileTap={{ scale: 0.92 }}
         whileHover={{ y: -1 }}
-        className="md:hidden fixed right-5 bottom-20 z-40 w-14 h-14 rounded-full bg-accent text-paper-tint shadow-lift border border-accent-deep flex items-center justify-center"
-        style={{ boxShadow: "0 8px 24px rgba(79,102,73,0.38), inset 0 1px 0 rgba(255,250,240,0.3)" }}
+        className="md:hidden fixed right-5 bottom-20 z-40 w-14 h-14 rounded-full bg-accent text-ink shadow-lift border border-accent-deep flex items-center justify-center"
+        style={{ boxShadow: "0 8px 24px rgb(var(--accent) / 0.35), inset 0 1px 0 rgb(var(--ink) / 0.2)" }}
       >
         <Plus className="w-7 h-7" strokeWidth={2} />
         {hasActive && (

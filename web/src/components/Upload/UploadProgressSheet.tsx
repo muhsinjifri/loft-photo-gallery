@@ -45,7 +45,7 @@ export function UploadProgressSheet() {
           style={{ paddingTop: 12, paddingBottom: 8 }}
         >
           <header className="flex items-center justify-between pb-2 mb-2 border-b border-line">
-            <h3 className="m-0 font-serif italic font-medium text-sm text-ink-soft">
+            <h3 className="m-0 font-medium text-sm text-ink-soft">
               uploads
             </h3>
             <div className="flex items-center gap-1">
@@ -93,11 +93,11 @@ export function UploadProgressSheet() {
                       </span>
                     </span>
                     <span
-                      className={`shrink-0 italic text-[12.5px] tabular-nums ${
+                      className={`shrink-0 text-[12.5px] tabular-nums ${
                         it.status === "done"
-                          ? "text-accent-deep not-italic"
+                          ? "text-accent"
                           : it.status === "error"
-                          ? "text-red-700 not-italic"
+                          ? "text-red-500"
                           : "text-ink-fade"
                       }`}
                     >

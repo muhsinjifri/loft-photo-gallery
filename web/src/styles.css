@@ -2,76 +2,226 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Loft — Apple design language.
+ *
+ * Values are taken from Apple's system palettes (UIColor / NSColor semantic
+ * colours) rather than invented, so the app sits correctly next to Photos,
+ * Finder and Settings on the devices it actually runs on. The grammar is:
+ *
+ *   - Content is the only saturated thing. Chrome is neutral grey, and the one
+ *     accent (system blue) marks selection and nothing else.
+ *   - Chrome is *material*, not paint: translucent, blurred, saturated — so the
+ *     library shows through the sidebar and toolbars as you scroll.
+ *   - Separators are hairlines, never borders with weight.
+ *   - Secondary text is the label colour at reduced alpha, not a separate grey.
+ *     That is how Apple keeps text legible over any material.
+ *
+ * Channels are space-separated RGB so Tailwind's `/alpha` modifiers keep working.
+ */
 @layer base {
-  :root {
+  :root,
+  [data-theme="light"] {
     color-scheme: light;
-    --c-paper: #F4EFE6;
-    --c-accent: #6B8266;
-    --c-highlight: #C8964E;
-    --c-ink-trace: #B5A893;
+
+    /* systemGroupedBackground / systemBackground / secondarySystemBackground */
+    --room: 242 242 247;
+    --canvas: 255 255 255;
+    --raised: 255 255 255;
+    --well: 229 229 234;
+    --warm: 242 242 247;
+
+    /* label at 100 / 60 / 30 / 18 percent — Apple's own hierarchy */
+    --ink: 0 0 0;
+    --ink-soft: 60 60 67;
+    --ink-fade: 60 60 67;
+    --ink-trace: 60 60 67;
+    --ink-soft-a: 0.72;
+    --ink-fade-a: 0.55;
+    --ink-trace-a: 0.3;
+
+    /* systemBlue */
+    --accent: 0 122 255;
+    --accent-warm: 51 145 255;
+    --accent-deep: 0 96 205;
+    /* Text placed on top of a filled accent */
+    --on-accent: 255 255 255;
+
+    --line: 60 60 67;
+    --line-a: 0.12;
+    --line-strong-a: 0.22;
+
+    --shadow-a: 0.12;
+    --scrim: 0 0 0;
+
+    --thumb: 255 255 255;
+
+    /* Vibrancy: the material chrome sits on */
+    --material: 255 255 255;
+    --material-a: 0.72;
   }
 
-  * { box-sizing: border-box; }
-  html, body, #root { margin: 0; padding: 0; height: 100%; }
+  [data-theme="dark"] {
+    color-scheme: dark;
+
+    /* Photos runs its library on true black; panels step up from it. */
+    --room: 28 28 30;
+    --canvas: 0 0 0;
+    --raised: 44 44 46;
+    --well: 44 44 46;
+    --warm: 28 28 30;
+
+    --ink: 255 255 255;
+    --ink-soft: 235 235 245;
+    --ink-fade: 235 235 245;
+    --ink-trace: 235 235 245;
+    --ink-soft-a: 0.78;
+    --ink-fade-a: 0.55;
+    --ink-trace-a: 0.3;
+
+    /* systemBlue (dark) — brighter, to hold up against black */
+    --accent: 10 132 255;
+    --accent-warm: 64 156 255;
+    --accent-deep: 0 106 220;
+    --on-accent: 255 255 255;
+
+    --line: 255 255 255;
+    --line-a: 0.13;
+    --line-strong-a: 0.22;
+
+    --shadow-a: 0.5;
+    --scrim: 0 0 0;
+
+    --thumb: 99 99 102;
+
+    --material: 40 40 42;
+    --material-a: 0.72;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+  html,
+  body,
+  #root {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+  }
 
   body {
-    background-color: var(--c-paper);
-    /* Soft warm wash on a clean paper surface — no texture noise */
-    background-image:
-      radial-gradient(at top left, rgba(255, 250, 240, 0.6), transparent 50%),
-      radial-gradient(at bottom right, rgba(232, 220, 200, 0.4), transparent 55%);
-    background-attachment: fixed;
-    color: #2A2620;
-    font-family: 'Fraunces', 'Iowan Old Style', 'Hoefler Text', Georgia, serif;
-    font-size: 15px;
-    line-height: 1.55;
-    font-feature-settings: "ss01", "ss02", "kern", "liga";
-    font-optical-sizing: auto;
+    background-color: rgb(var(--room));
+    color: rgb(var(--ink));
+    /*
+     * The system stack resolves to SF Pro on Apple platforms and Segoe on
+     * Windows. No webfont: it paints on the first frame and works offline,
+     * which matters more here than a bespoke face would.
+     */
+    font-family:
+      -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Inter", "Segoe UI",
+      Roboto, system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.47;
+    letter-spacing: -0.01em;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
   ::selection {
-    background: rgba(107, 130, 102, 0.16);
-    color: #2A2620;
+    background: rgb(var(--accent) / 0.3);
   }
 
-  a { color: #4F6649; text-decoration: none; }
+  a {
+    color: rgb(var(--accent));
+    text-decoration: none;
+  }
 
-  *::-webkit-scrollbar { width: 10px; height: 10px; }
-  *::-webkit-scrollbar-track { background: transparent; }
+  /* Apple's focus ring: a soft accent halo, not a hard outline. */
+  :focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3.5px rgb(var(--accent) / 0.5);
+    border-radius: 6px;
+  }
+
+  /* Overlay scrollbars, the way macOS draws them. */
+  *::-webkit-scrollbar {
+    width: 11px;
+    height: 11px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
   *::-webkit-scrollbar-thumb {
-    background: var(--c-ink-trace);
+    background: rgb(var(--ink) / 0.22);
     border-radius: 999px;
-    border: 2px solid var(--c-paper);
+    border: 3px solid transparent;
+    background-clip: content-box;
   }
-  *::-webkit-scrollbar-thumb:hover { background: #8A7F71; }
+  *::-webkit-scrollbar-thumb:hover {
+    background: rgb(var(--ink) / 0.36);
+    background-clip: content-box;
+  }
 }
 
 @layer components {
-  /* Torn-paper sidebar edge — sits on .desktop-sidebar */
-  .torn-edge::after {
-    content: '';
-    position: absolute;
-    top: 0; right: -1px; bottom: 0;
-    width: 2px;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 2 200' preserveAspectRatio='none'%3E%3Cpath d='M1 0 Q 0.4 50, 1 100 T 1 200' stroke='%23B5A893' stroke-width='0.6' fill='none' opacity='0.5'/%3E%3C/svg%3E");
-    background-repeat: repeat-y;
-    background-size: 2px 200px;
-    pointer-events: none;
+  /*
+   * Vibrancy. The defining material of the platform: chrome is a frosted pane
+   * the content scrolls beneath, never an opaque block. The saturate() boost is
+   * what stops blurred colour behind it turning to grey mush.
+   */
+  .material {
+    background: rgb(var(--material) / var(--material-a));
+    -webkit-backdrop-filter: saturate(180%) blur(30px);
+    backdrop-filter: saturate(180%) blur(30px);
   }
 
-  /* Hand-drawn ink underline beneath active nav item */
-  .nav-link-active::after {
-    content: '';
-    position: absolute;
-    left: 10px;
-    right: 14px;
-    bottom: 2px;
-    height: 5px;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 5' preserveAspectRatio='none'%3E%3Cpath d='M2 2.5 Q 12 0.8, 22 2.5 T 42 2.5 T 62 2.5 T 82 2.5 T 98 2.5' stroke='%236B8266' stroke-width='1.4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-size: 100% 100%;
-    pointer-events: none;
+  /* A hairline: 1 device pixel at any density, never a scaled border. */
+  .hairline-b {
+    box-shadow: inset 0 -1px 0 0 rgb(var(--line) / var(--line-a));
+  }
+  .hairline-r {
+    box-shadow: inset -1px 0 0 0 rgb(var(--line) / var(--line-a));
+  }
+
+  /* Apple's segmented control: a sunken track with a raised thumb. */
+  .segmented {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px;
+    border-radius: 9px;
+    background: rgb(var(--ink) / 0.06);
+  }
+  .segmented > button {
+    position: relative;
+    isolation: isolate;
+    padding: 4px 12px;
+    border: 0;
+    background: transparent;
+    border-radius: 7px;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    color: rgb(var(--ink) / 0.85);
+    cursor: pointer;
+    transition: color 0.18s ease;
+    white-space: nowrap;
+  }
+  /* The label rides above the sliding thumb. */
+  .segmented > button > :not([data-thumb]) {
+    position: relative;
+    z-index: 1;
+  }
+  .segmented > button[aria-pressed="true"] {
+    color: rgb(var(--ink));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

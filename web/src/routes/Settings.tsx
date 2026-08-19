@@ -7,7 +7,7 @@ import { backfillVideoThumbnails, countPlaceholderVideos, skipKey } from "../bac
 import { getDevUser, setDevUser } from "../api";
 import { loadSharedAlbumIds } from "../filter";
 import { useUser } from "../user";
-import { Underline } from "../components/flourishes";
+import { useTheme, type ThemePref } from "../theme";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -16,6 +16,7 @@ interface BeforeInstallPromptEvent extends Event {
 
 export function Settings() {
   const { me, partner, stale } = useUser();
+  const { pref, setPref } = useTheme();
 
   const lastSync = useLiveQuery(async () => {
     const row = await db.meta.get("last_sync");
@@ -127,27 +128,21 @@ export function Settings() {
 
   return (
     <>
-      <header className="relative flex items-end justify-between gap-4 pb-4 mb-6">
+      <header className="flex items-end justify-between gap-4 pb-3 mb-5 hairline-b">
         <div>
-          <h2 className="font-serif text-3xl sm:text-4xl m-0 text-ink -tracking-[0.015em] leading-[1.1]">
-            Settings
-          </h2>
-          <span className="block mt-1 font-serif italic text-[13.5px] text-ink-fade">
-            tune the loft to your liking
-          </span>
+          <h2 className="font-display text-large font-bold m-0 text-ink">Settings</h2>
+          <span className="block mt-0.5 text-footnote text-ink-fade">tune the loft to your liking</span>
         </div>
-        <span className="absolute -bottom-[3px] right-0 w-1.5 h-1.5 rounded-full bg-highlight" />
-        <Underline className="block absolute -bottom-[5px] inset-x-0 w-full h-1.5 text-accent/50" />
       </header>
 
-      <div className="space-y-5 max-w-[640px]">
+      <div className="space-y-6 max-w-[620px]">
         <Section title="Account">
           <Row label="Signed in as">
             <div className="flex flex-col">
               <span className="text-ink-soft">{me?.display_name ?? "—"}</span>
-              <span className="text-[12.5px] italic text-ink-fade">{me?.email}</span>
+              <span className="text-footnote text-ink-fade">{me?.email}</span>
               {stale && (
-                <span className="text-[12.5px] italic text-ink-fade">
+                <span className="text-footnote text-ink-fade">
                   showing your last-known account — you're offline.
                 </span>
               )}
@@ -158,7 +153,7 @@ export function Settings() {
               {partner ? (
                 partner.display_name
               ) : (
-                <span className="italic text-ink-fade">no one else yet</span>
+                <span className="text-ink-fade">no one else yet</span>
               )}
             </span>
           </Row>
@@ -175,15 +170,22 @@ export function Settings() {
 
         <Section title="Appearance">
           <Row label="Theme">
-            <fieldset className="flex items-center gap-3">
-              <label className="inline-flex items-center gap-1.5 text-ink-soft text-[14px]">
-                <input type="radio" name="theme" defaultChecked className="accent-accent" /> Warm light
-              </label>
-              <label className="inline-flex items-center gap-1.5 text-ink-trace text-[14px]">
-                <input type="radio" name="theme" disabled /> Warm dark
-                <span className="text-[11px] italic">— soon</span>
-              </label>
-            </fieldset>
+            <div role="group" aria-label="Theme" className="segmented">
+              {(["system", "light", "dark"] as ThemePref[]).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  aria-pressed={pref === t}
+                  onClick={() => setPref(t)}
+                  className="capitalize"
+                >
+                  {pref === t && (
+                    <span data-thumb className="absolute inset-0 rounded-[7px] bg-paper-thumb shadow-thumb" />
+                  )}
+                  <span>{t}</span>
+                </button>
+              ))}
+            </div>
           </Row>
         </Section>
 
@@ -194,7 +196,7 @@ export function Settings() {
                 <DownloadIcon className="w-4 h-4" /> Add to home screen
               </button>
             ) : (
-              <span className="italic text-ink-fade text-[13.5px]">
+              <span className="text-ink-fade text-footnote">
                 already installed, or install isn't available here.
               </span>
             )}
@@ -210,7 +212,7 @@ export function Settings() {
                 <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
                 {syncing ? "Syncing…" : "Sync now"}
               </button>
-              <span className="italic text-ink-fade text-[12.5px]">last: {syncedLabel}</span>
+              <span className="text-ink-fade text-footnote tabular-nums">last: {syncedLabel}</span>
             </div>
           </Row>
           <Row label="Local cache">
@@ -235,7 +237,7 @@ export function Settings() {
                   ? "Regenerating…"
                   : `Regenerate${placeholderCount ? ` (${placeholderCount})` : ""}`}
               </button>
-              <span className="italic text-ink-fade text-[12.5px]">
+              <span className="text-ink-fade text-footnote tabular-nums">
                 {backfillMsg ??
                   ((placeholderCount ?? 0) === 0
                     ? "all videos have real thumbnails."
@@ -247,11 +249,11 @@ export function Settings() {
 
         <Section title="Storage">
           <Row label="Used">
-            <span className="text-ink-fade italic">— of —</span>
+            <span className="text-ink-fade">— of —</span>
           </Row>
-          <p className="text-[12.5px] italic text-ink-fade m-0">
-            storage stats are coming soon.
-          </p>
+          <Row label="Storage stats">
+            <span className="text-ink-fade text-footnote">coming soon</span>
+          </Row>
         </Section>
 
         {import.meta.env.DEV && (
@@ -267,25 +269,23 @@ export function Settings() {
                   await wipeLocalIdentityData();
                   location.reload();
                 }}
-                className="rounded border border-line-strong bg-paper-tint px-2 py-1 font-serif text-[13.5px] text-ink outline-none focus:border-accent"
+                className="rounded border border-line-strong bg-paper-tint px-2 py-1 text-[13.5px] text-ink outline-none focus:border-accent"
               >
                 <option value="">default (first allowed email)</option>
                 <option value="1">user 1</option>
                 <option value="2">user 2</option>
               </select>
             </Row>
-            <p className="text-[12.5px] italic text-ink-fade m-0">
-              sets the loft_dev_user cookie; honored only when the Worker's ENV is "dev".
-            </p>
+
           </Section>
         )}
 
         <Section title="About">
           <Row label="Version">
-            <span className="text-ink-soft font-mono text-[13px]">{version}</span>
+            <span className="text-ink-fade font-mono text-footnote tabular-nums">{version}</span>
           </Row>
           <Row label="In your loft">
-            <span className="text-ink-soft text-[13.5px]">
+            <span className="text-ink-fade text-footnote tabular-nums">
               {counts?.mine ?? 0} {counts?.mine === 1 ? "picture" : "pictures"} yours
               {partner ? ` · ${counts?.shared ?? 0} in shared albums` : ""} ·{" "}
               {counts?.albumsMine ?? 0} {counts?.albumsMine === 1 ? "album" : "albums"}
@@ -300,20 +300,18 @@ export function Settings() {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="paper-card">
-      <h3 className="font-serif italic text-[15px] text-ink-fade font-medium lowercase tracking-[0.04em] m-0 mb-3 pb-2 border-b border-line">
-        {title}
-      </h3>
-      <div className="space-y-3">{children}</div>
+    <section>
+      <h3 className="label m-0 mb-2 px-1">{title}</h3>
+      <div className="paper-card !p-0 divide-y divide-line">{children}</div>
     </section>
   );
 }
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-[140px_1fr] gap-3 items-center">
-      <span className="font-serif text-[13.5px] italic text-ink-fade">{label}</span>
-      <div>{children}</div>
+    <div className="grid grid-cols-[150px_1fr] gap-3 items-center px-4 py-2.5 min-h-[44px]">
+      <span className="text-body text-ink">{label}</span>
+      <div className="justify-self-end text-right">{children}</div>
     </div>
   );
 }

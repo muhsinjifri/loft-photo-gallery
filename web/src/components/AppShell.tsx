@@ -21,17 +21,17 @@ export function AppShell({ syncRunner }: { syncRunner?: ReactNode }) {
       <KeyboardShortcutsProvider>
         <div className="md:grid md:grid-cols-[auto_1fr] min-h-screen">
           <DesktopSidebar />
-          <div className="flex flex-col min-w-0">
+          <div className="flex flex-col min-w-0 bg-paper-canvas">
             <MobileTopBar />
             <main
               className="
                 flex-1 min-w-0
-                px-4 md:px-8 lg:px-10
-                pt-4 md:pt-7
-                pb-24 md:pb-16
+                px-4 md:px-7 lg:px-9
+                pt-4 md:pt-6
+                pb-24 md:pb-12
               "
             >
-              <div className="max-w-[1280px] mx-auto">
+              <div className="max-w-[1440px] mx-auto">
                 <Outlet />
               </div>
             </main>

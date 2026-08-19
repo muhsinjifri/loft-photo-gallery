@@ -12,7 +12,6 @@ import { syncFromServer } from "../sync";
 import { useUser } from "../user";
 import { EmptyState } from "../components/EmptyState";
 import { AlbumListSkeleton } from "../components/skeletons";
-import { Underline } from "../components/flourishes";
 
 interface AlbumCard {
   album: Album;
@@ -83,14 +82,10 @@ export function Albums() {
   }
 
   const Header = (
-    <header className="relative flex items-end justify-between gap-4 pb-4 mb-5">
+    <header className="flex items-end justify-between gap-4 pb-3 mb-4 hairline-b">
       <div className="min-w-0">
-        <h2 className="font-serif text-3xl sm:text-4xl m-0 text-ink -tracking-[0.015em] leading-[1.1]">
-          Albums
-        </h2>
-        <span className="block mt-1 font-serif italic text-[13.5px] text-ink-fade">
-          collections you've gathered
-        </span>
+        <h2 className="font-display text-large font-bold m-0 text-ink">Albums</h2>
+        <span className="block mt-0.5 text-footnote text-ink-fade">collections you've gathered</span>
       </div>
       <button
         type="button"
@@ -99,8 +94,6 @@ export function Albums() {
       >
         <Plus className="w-4 h-4" /> New album
       </button>
-      <span className="absolute -bottom-[3px] right-0 w-1.5 h-1.5 rounded-full bg-highlight" />
-      <Underline className="block absolute -bottom-[5px] inset-x-0 w-full h-1.5 text-accent/50" />
     </header>
   );
 
@@ -126,7 +119,7 @@ export function Albums() {
           }
         />
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-4 gap-y-5">
           {cards!.map(({ album: a, ...stats }, i) => {
             const mine = a.owner_id === me?.id;
             return (
@@ -137,44 +130,39 @@ export function Albums() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: Math.min(i, 12) * 0.04 }}
               >
-                <Link
-                  to={`/a/${a.id}`}
-                  className="tile block aspect-[4/5] relative no-underline"
-                  style={{ background: "var(--c-paper, #EDE5D6)" }}
-                >
-                  {stats?.cover ? (
-                    <img
-                      src={imgUrl.thumb(stats.cover, stats.coverVer)}
-                      alt=""
-                      loading="lazy"
-                      className="absolute inset-0 w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="absolute inset-0 flex items-center justify-center text-ink-trace italic font-serif text-sm">
-                      empty
-                    </div>
-                  )}
-                  <div
-                    className="absolute inset-x-0 bottom-0 p-3 text-paper-tint"
-                    style={{
-                      background:
-                        "linear-gradient(to top, rgba(20,16,12,0.72), rgba(20,16,12,0))",
-                    }}
-                  >
-                    <p className="m-0 font-serif text-[15px] font-medium truncate">{a.name}</p>
-                    <p className="m-0 text-[11.5px] italic text-paper-tint/75">
+                {/* Photos puts the album's name under its cover, not over it:
+                    nothing obscures the picture, and the titles line up into a
+                    readable column. */}
+                <Link to={`/a/${a.id}`} className="block no-underline">
+                  <span className="tile block aspect-square relative !rounded-lg">
+                    {stats?.cover ? (
+                      <img
+                        src={imgUrl.thumb(stats.cover, stats.coverVer)}
+                        alt=""
+                        loading="lazy"
+                        className="absolute inset-0 w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="absolute inset-0 flex items-center justify-center text-ink-trace text-footnote">
+                        empty
+                      </span>
+                    )}
+                    {a.is_shared === 1 && (
+                      <span
+                        className="absolute top-2 left-2 inline-flex items-center gap-1 px-1.5 py-[3px] rounded-pill text-[10.5px] font-medium text-white"
+                        style={{ background: "rgb(0 0 0 / 0.5)", backdropFilter: "blur(8px)" }}
+                      >
+                        <Users className="w-2.5 h-2.5" /> Shared
+                      </span>
+                    )}
+                  </span>
+                  <span className="block mt-2 px-0.5">
+                    <span className="block text-footnote font-medium text-ink truncate">{a.name}</span>
+                    <span className="block text-caption text-ink-fade tabular-nums">
                       {stats.count} {stats.count === 1 ? "picture" : "pictures"}
-                      {!mine && ` · by ${displayNameFor(a.owner_id)}`}
-                    </p>
-                  </div>
-                  {a.is_shared === 1 && (
-                    <span
-                      className="absolute top-2 left-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-pill text-[10.5px] font-medium text-paper-tint backdrop-blur-md"
-                      style={{ background: "rgba(42,38,32,0.78)" }}
-                    >
-                      <Users className="w-2.5 h-2.5" /> Shared
+                      {!mine && ` · ${displayNameFor(a.owner_id)}`}
                     </span>
-                  )}
+                  </span>
                 </Link>
 
                 {/* Only the owner controls sharing — you can add your photos to
@@ -185,8 +173,8 @@ export function Albums() {
                       <button
                         type="button"
                         aria-label={`Options for ${a.name}`}
-                        className="absolute top-1.5 right-1.5 w-7 h-7 inline-flex items-center justify-center rounded-full text-paper-tint backdrop-blur-md opacity-0 focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity"
-                        style={{ background: "rgba(42,38,32,0.6)" }}
+                        className="absolute top-2 right-2 w-7 h-7 inline-flex items-center justify-center rounded-full text-ink backdrop-blur-md opacity-0 focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity"
+                        style={{ background: "rgb(var(--scrim) / 0.6)" }}
                       >
                         <MoreHorizontal className="w-4 h-4" />
                       </button>
@@ -199,7 +187,7 @@ export function Albums() {
                       >
                         <DropdownMenu.Item
                           onSelect={() => void toggleShare(a)}
-                          className="flex items-center gap-2 px-2.5 py-1.5 rounded font-serif text-[13.5px] text-ink-soft outline-none cursor-pointer data-[highlighted]:bg-accent/10"
+                          className="flex items-center gap-2 px-2.5 py-1.5 rounded text-[13.5px] text-ink-soft outline-none cursor-pointer data-[highlighted]:bg-accent/10"
                         >
                           <Users className="w-3.5 h-3.5" />
                           {a.is_shared === 1
@@ -228,7 +216,7 @@ export function Albums() {
                 <Dialog.Title className="font-display text-3xl text-ink m-0">
                   New album
                 </Dialog.Title>
-                <Dialog.Description className="font-serif italic text-[13.5px] text-ink-fade m-0">
+                <Dialog.Description className="text-[13.5px] text-ink-fade m-0">
                   give this collection a name.
                 </Dialog.Description>
               </div>
@@ -247,10 +235,10 @@ export function Albums() {
               }}
               placeholder="trip to the coast"
               autoFocus
-              className="w-full rounded border border-line-strong bg-paper-tint px-3 py-2 font-serif text-[15px] text-ink outline-none focus:border-accent transition-colors"
+              className="w-full rounded border border-line-strong bg-paper-tint px-3 py-2 text-[15px] text-ink outline-none focus:border-accent transition-colors"
             />
             {partner && (
-              <label className="flex items-center gap-2 mt-3 font-serif text-[13.5px] text-ink-soft cursor-pointer">
+              <label className="flex items-center gap-2 mt-3 text-[13.5px] text-ink-soft cursor-pointer">
                 <input
                   type="checkbox"
                   checked={shareNew}

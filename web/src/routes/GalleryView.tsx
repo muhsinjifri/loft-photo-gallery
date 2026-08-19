@@ -7,7 +7,6 @@ import { MasonryGrid } from "../components/MasonryGrid";
 import { Viewer } from "../components/Viewer";
 import { UploadButton } from "../components/Upload";
 import { EmptyState } from "../components/EmptyState";
-import { Underline } from "../components/flourishes";
 import { AlbumPicker } from "../components/AlbumPicker";
 import { useUser } from "../user";
 
@@ -120,16 +119,10 @@ export function GalleryView({
 
   return (
     <>
-      <header className="relative flex items-end justify-between gap-4 pb-4 mb-5">
+      <header className="flex items-end justify-between gap-4 pb-3 mb-4 hairline-b">
         <div className="min-w-0">
-          <h2 className="font-serif text-3xl sm:text-4xl m-0 text-ink -tracking-[0.015em] leading-[1.1] truncate">
-            {title}
-          </h2>
-          {subtitle && (
-            <span className="block mt-1 font-serif italic text-[13.5px] text-ink-fade">
-              {subtitle}
-            </span>
-          )}
+          <h2 className="font-display text-large font-bold m-0 text-ink truncate">{title}</h2>
+          {subtitle && <span className="block mt-0.5 text-footnote text-ink-fade">{subtitle}</span>}
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {!selectMode && rightSlot}
@@ -153,8 +146,6 @@ export function GalleryView({
             </span>
           )}
         </div>
-        <span className="absolute -bottom-[3px] right-0 w-1.5 h-1.5 rounded-full bg-highlight" />
-        <Underline className="block absolute -bottom-[5px] inset-x-0 w-full h-1.5 text-accent/50" />
       </header>
 
       <MasonryGrid
@@ -180,10 +171,9 @@ export function GalleryView({
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 80, opacity: 0 }}
             transition={{ type: "spring", stiffness: 380, damping: 34 }}
-            className="fixed z-[90] left-1/2 -translate-x-1/2 bottom-20 md:bottom-6 flex items-center gap-3 rounded-pill border border-line-strong px-3 py-2 shadow-lift"
-            style={{ background: "rgba(250,245,236,0.97)", backdropFilter: "blur(8px)" }}
+            className="material fixed z-[90] left-1/2 -translate-x-1/2 bottom-20 md:bottom-6 flex items-center gap-3 rounded-xl border border-line px-2.5 py-2 shadow-lift"
           >
-            <span className="font-serif text-[13.5px] text-ink-soft pl-1.5 whitespace-nowrap">
+            <span className="text-footnote text-ink-soft pl-1.5 whitespace-nowrap tabular-nums">
               {selected.size === 0
                 ? "select pictures"
                 : `${selected.size} selected`}

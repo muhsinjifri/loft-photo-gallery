@@ -69,7 +69,7 @@ function MasonryCard({
       className={`tile block w-full text-left p-0 border-0 outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-paper ${
         inert ? "cursor-default" : ""
       }`}
-      style={{ height, background: "var(--c-paper, #EDE5D6)" }}
+      style={{ height }}
       aria-label={photo.filename}
       title={inert ? "only its owner can file this one" : undefined}
     >
@@ -80,33 +80,30 @@ function MasonryCard({
         className="w-full h-full object-cover block"
         style={{
           filter: "saturate(1.02)",
-          opacity: inert ? 0.45 : checked ? 0.82 : 1,
-          transition: "opacity .15s",
+          opacity: inert ? 0.4 : 1,
+          transform: checked ? "scale(.93)" : "none",
+          transition: "transform .2s cubic-bezier(.32,.72,0,1), opacity .15s",
         }}
       />
       {selectMode && selectable && (
         <>
           <span
             aria-hidden
-            className="absolute inset-0 pointer-events-none transition-colors"
-            style={{ background: checked ? "rgba(107,130,102,0.28)" : "transparent" }}
-          />
-          <span
-            aria-hidden
-            className="absolute top-2 left-2 w-5 h-5 rounded-full flex items-center justify-center border transition-colors"
+            className="absolute bottom-1.5 right-1.5 w-[22px] h-[22px] rounded-full flex items-center justify-center transition-colors"
             style={{
-              background: checked ? "var(--c-accent, #6B8266)" : "rgba(250,245,236,0.72)",
-              borderColor: checked ? "var(--c-accent, #6B8266)" : "rgba(42,38,32,0.28)",
+              background: checked ? "rgb(var(--accent))" : "rgb(0 0 0 / 0.28)",
+              boxShadow: checked ? "none" : "inset 0 0 0 1.5px rgb(255 255 255 / 0.9)",
+              backdropFilter: checked ? "none" : "blur(4px)",
             }}
           >
-            {checked && <Check className="w-3 h-3 text-paper-tint" strokeWidth={3} />}
+            {checked && <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />}
           </span>
         </>
       )}
       {data.ownerInitial ? (
         <span
-          className="absolute bottom-2 left-2 flex items-center justify-center w-5 h-5 rounded-full text-[10.5px] font-medium text-paper-tint backdrop-blur-md"
-          style={{ background: "rgba(42,38,32,0.78)" }}
+          className="absolute bottom-2 left-2 flex items-center justify-center w-5 h-5 rounded-full text-[10.5px] font-medium text-ink backdrop-blur-md"
+          style={{ background: "rgb(var(--scrim) / 0.72)", backdropFilter: "blur(6px)" }}
           title={`added by ${data.ownerInitial}`}
         >
           {data.ownerInitial}
@@ -114,8 +111,8 @@ function MasonryCard({
       ) : null}
       {photo.duration_ms ? (
         <span
-          className="absolute bottom-2 right-2 flex items-center gap-1 px-1.5 py-0.5 rounded-pill text-[10.5px] font-medium tracking-wide text-paper-tint backdrop-blur-md"
-          style={{ background: "rgba(42,38,32,0.78)" }}
+          className="absolute bottom-2 right-2 flex items-center gap-1 px-1.5 py-0.5 rounded-pill text-[10.5px] font-medium tracking-wide text-ink backdrop-blur-md"
+          style={{ background: "rgb(var(--scrim) / 0.72)", backdropFilter: "blur(6px)" }}
         >
           <Film className="w-2.5 h-2.5" />
           {Math.round(photo.duration_ms / 1000)}s
@@ -178,8 +175,8 @@ export function MasonryGrid({
       // every checkbox click would reset masonic's measured layout mid-selection.
       items={items}
       columnCount={columnCount}
-      columnGutter={columnCount <= 2 ? 8 : 12}
-      rowGutter={columnCount <= 2 ? 8 : 12}
+      columnGutter={columnCount <= 2 ? 3 : 5}
+      rowGutter={columnCount <= 2 ? 3 : 5}
       overscanBy={2}
       render={({ data, width }) => (
         <MasonryCard

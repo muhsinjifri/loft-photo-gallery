@@ -14,7 +14,6 @@ import {
 import { useState, type ReactNode } from "react";
 import { db } from "../db";
 import { api } from "../api";
-import { BrandFlourish, SectionDivider } from "./flourishes";
 
 interface NavRowProps {
   to: string;
@@ -29,10 +28,8 @@ function NavRow({ to, end, icon, children }: NavRowProps) {
       to={to}
       end={end}
       className={({ isActive }) =>
-        `relative flex items-center gap-2.5 px-3 py-2 rounded-sm text-[14.5px] transition-colors ${
-          isActive
-            ? "text-ink font-medium"
-            : "text-ink-soft hover:text-ink hover:bg-paper-deep/60"
+        `relative flex items-center gap-2.5 px-2.5 py-[5px] rounded-sm text-[13.5px] transition-colors ${
+          isActive ? "text-accent-on font-medium" : "text-ink hover:bg-ink/[0.06]"
         }`
       }
     >
@@ -41,11 +38,11 @@ function NavRow({ to, end, icon, children }: NavRowProps) {
           {isActive && (
             <motion.span
               layoutId="navPill"
-              className="absolute inset-0 -z-10 rounded-sm bg-accent/[0.08]"
-              transition={{ type: "spring", stiffness: 380, damping: 32 }}
+              className="absolute inset-0 -z-10 rounded-sm bg-accent"
+              transition={{ type: "spring", stiffness: 520, damping: 40 }}
             />
           )}
-          <span className="text-ink-fade [.text-ink_&]:text-ink-soft shrink-0">{icon}</span>
+          <span className={`shrink-0 ${isActive ? "text-accent-on" : "text-accent"}`}>{icon}</span>
           <span>{children}</span>
         </>
       )}
@@ -86,25 +83,18 @@ export function DesktopSidebar() {
   return (
     <aside
       className="
-        torn-edge relative hidden md:flex flex-col
-        w-[224px] lg:w-[260px]
-        bg-gradient-to-b from-paper-deep/55 to-paper-deep/25
-        border-r border-line
+        material hairline-r relative hidden md:flex flex-col
+        w-[228px] lg:w-[250px]
         h-screen sticky top-0
-        px-5 lg:px-6 pt-7 pb-5
+        px-3 lg:px-3.5 pt-5 pb-4
       "
     >
       {/* Brand */}
-      <div className="mb-6 shrink-0">
-        <h1 className="font-display text-[44px] leading-[0.9] text-ink m-0 -tracking-[0.5px]">
+      <div className="mb-5 shrink-0 px-2 pt-1">
+        <h1 className="font-display text-[21px] font-semibold leading-none text-ink m-0 -tracking-[0.02em]">
           Loft
         </h1>
-        <span className="block w-24 h-3 mt-0.5 text-highlight">
-          <BrandFlourish className="block w-full h-full" />
-        </span>
-        <span className="block mt-1.5 font-serif italic text-[13px] text-ink-fade">
-          a quiet place for pictures
-        </span>
+        <span className="block mt-1 text-[12px] text-ink-fade">a quiet place for pictures</span>
       </div>
 
       {/* Pinned destinations */}
@@ -129,7 +119,7 @@ export function DesktopSidebar() {
           <button
             type="button"
             onClick={() => setAlbumsOpen((v) => !v)}
-            className="flex items-center gap-1 font-serif italic text-[13px] font-medium text-ink-fade tracking-[0.03em] lowercase hover:text-ink-soft transition-colors"
+            className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.05em] text-ink-fade hover:text-ink-soft transition-colors"
           >
             <ChevronDown
               className={`w-3.5 h-3.5 transition-transform ${albumsOpen ? "" : "-rotate-90"}`}
@@ -147,9 +137,6 @@ export function DesktopSidebar() {
             <Plus className="w-3.5 h-3.5" />
           </button>
         </header>
-        <span className="block w-full h-1.5 my-1 text-ink-trace">
-          <SectionDivider className="block w-full h-full" />
-        </span>
         {albumsOpen && (
           <nav className="flex flex-col gap-0.5 overflow-y-auto -mr-2 pr-2" key={location.pathname}>
             {albums?.length ? (
@@ -158,23 +145,23 @@ export function DesktopSidebar() {
                   key={a.id}
                   to={`/a/${a.id}`}
                   className={({ isActive }) =>
-                    `block px-3 py-1.5 rounded-sm text-[14px] transition-colors truncate ${
+                    `block px-2.5 py-[5px] rounded-sm text-[13.5px] transition-colors truncate ${
                       isActive
-                        ? "text-ink font-medium bg-accent/[0.08]"
-                        : "text-ink-soft hover:text-ink hover:bg-paper-deep/60"
+                        ? "text-accent-on font-medium bg-accent"
+                        : "text-ink hover:bg-ink/[0.06]"
                     }`
                   }
                 >
                   <span className="inline-flex items-center gap-1.5 min-w-0">
                     <span className="truncate">{a.name}</span>
                     {a.is_shared === 1 && (
-                      <Users className="w-3 h-3 shrink-0 text-ink-fade" aria-label="shared" />
+                      <Users className="w-3 h-3 shrink-0 opacity-60" aria-label="shared" />
                     )}
                   </span>
                 </NavLink>
               ))
             ) : (
-              <span className="text-ink-fade italic text-[13px] px-3 py-1">none yet</span>
+              <span className="text-ink-fade text-[13px] px-2.5 py-1">none yet</span>
             )}
           </nav>
         )}
@@ -185,18 +172,16 @@ export function DesktopSidebar() {
         <NavLink
           to="/settings"
           className={({ isActive }) =>
-            `flex items-center gap-2.5 px-3 py-1.5 rounded-sm text-[13.5px] transition-colors ${
-              isActive
-                ? "text-ink font-medium"
-                : "text-ink-soft hover:text-ink hover:bg-paper-deep/60"
+            `flex items-center gap-2.5 px-2.5 py-[5px] rounded-sm text-[13.5px] transition-colors ${
+              isActive ? "text-accent-on font-medium bg-accent" : "text-ink hover:bg-ink/[0.06]"
             }`
           }
         >
           <SettingsIcon className="w-3.5 h-3.5" />
           Settings
         </NavLink>
-        <p className="text-[11.5px] italic text-ink-fade m-0 px-3">{syncedLabel}</p>
-        <p className="text-[11.5px] text-ink-trace m-0 px-3">— used of —</p>
+        <p className="text-[11.5px] text-ink-fade m-0 px-2.5">{syncedLabel}</p>
+        
       </div>
     </aside>
   );

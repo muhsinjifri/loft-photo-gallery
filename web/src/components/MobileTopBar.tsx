@@ -1,42 +1,25 @@
-import { Link, NavLink, useLocation } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
 import { Settings as SettingsIcon } from "lucide-react";
-import { BrandFlourish } from "./flourishes";
 
+/** A compact navigation bar on vibrant material, the way an iOS bar sits over content. */
 export function MobileTopBar() {
-  const loc = useLocation();
-  // Hide brand on viewer-style routes? Always show brand for now.
   return (
-    <header
-      className="md:hidden sticky top-0 z-20 px-4 pt-4 pb-3 backdrop-blur-md flex items-start justify-between gap-3"
-      style={{
-        background:
-          "linear-gradient(to bottom, rgba(244,239,230,0.92), rgba(244,239,230,0.78))",
-        borderBottom: "1px solid var(--c-ink-trace, rgba(58,50,40,0.10))",
-      }}
-    >
-      <Link
-        to="/"
-        className="inline-flex flex-col items-start no-underline"
-        aria-label="Loft home"
-        key={loc.pathname}
-      >
-        <span className="font-display text-[32px] leading-none text-ink m-0 -tracking-[0.4px]">
+    <header className="material hairline-b md:hidden sticky top-0 z-20 px-4 h-11 flex items-center justify-between gap-3">
+      <Link to="/" className="no-underline" aria-label="Loft home">
+        <span className="font-display text-[17px] font-semibold text-ink -tracking-[0.02em]">
           Loft
-        </span>
-        <span className="block w-16 h-2 mt-0.5 text-highlight">
-          <BrandFlourish className="block w-full h-full" />
         </span>
       </Link>
       <NavLink
         to="/settings"
         aria-label="Settings"
         className={({ isActive }) =>
-          `inline-flex items-center justify-center w-9 h-9 rounded-full transition-colors ${
-            isActive ? "text-accent-deep bg-accent/10" : "text-ink-fade"
+          `inline-flex items-center justify-center w-8 h-8 rounded-full transition-colors ${
+            isActive ? "text-accent" : "text-ink-fade"
           }`
         }
       >
-        <SettingsIcon className="w-[22px] h-[22px]" />
+        <SettingsIcon className="w-[19px] h-[19px]" />
       </NavLink>
     </header>
   );

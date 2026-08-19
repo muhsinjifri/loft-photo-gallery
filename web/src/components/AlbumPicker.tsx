@@ -68,17 +68,17 @@ export function AlbumPicker({ open, onOpenChange, photoIds, currentAlbumId, onDo
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-[150] bg-ink/40 animate-fadeIn" />
+        <Dialog.Overlay className="fixed inset-0 z-[150] bg-black/40 animate-fadeIn" style={{ backdropFilter: "blur(4px)" }} />
         <Dialog.Content
-          className="fixed z-[151] left-1/2 top-[40%] -translate-x-1/2 -translate-y-1/2 paper-card w-[min(420px,calc(100vw-32px))]"
-          style={{ animation: "liftIn .2s cubic-bezier(.2,.7,.2,1)" }}
+          className="fixed z-[151] left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 paper-card !p-0 overflow-hidden w-[min(400px,calc(100vw-32px))]"
+          style={{ animation: "liftIn .26s cubic-bezier(.32,.72,0,1)" }}
         >
-          <div className="flex items-start justify-between mb-3">
+          <div className="flex items-start justify-between gap-3 px-4 pt-4 pb-3">
             <div>
-              <Dialog.Title className="font-display text-3xl text-ink m-0">
+              <Dialog.Title className="font-display text-title3 font-semibold text-ink m-0">
                 {creating ? "New album" : "Add to album"}
               </Dialog.Title>
-              <Dialog.Description className="font-serif italic text-[13.5px] text-ink-fade m-0">
+              <Dialog.Description className="text-footnote text-ink-fade m-0">
                 {creating
                   ? `it'll start with ${count === 1 ? "this picture" : `these ${count} pictures`}.`
                   : `filing ${count === 1 ? "1 picture" : `${count} pictures`}.`}
@@ -102,9 +102,9 @@ export function AlbumPicker({ open, onOpenChange, photoIds, currentAlbumId, onDo
                 }}
                 placeholder="trip to the coast"
                 autoFocus
-                className="w-full rounded border border-line-strong bg-paper-tint px-3 py-2 font-serif text-[15px] text-ink outline-none focus:border-accent transition-colors"
+                className="w-full mx-4 rounded-md border border-line-strong bg-paper px-3 py-2 text-body text-ink outline-none focus:border-accent transition-colors" style={{ width: "calc(100% - 2rem)" }}
               />
-              <div className="flex items-center justify-end gap-2 mt-4">
+              <div className="flex items-center justify-end gap-2 px-4 py-3 mt-2">
                 <button type="button" className="btn" onClick={() => setCreating(false)} disabled={busy}>
                   Back
                 </button>
@@ -120,9 +120,9 @@ export function AlbumPicker({ open, onOpenChange, photoIds, currentAlbumId, onDo
             </>
           ) : (
             <>
-              <div className="max-h-[46vh] overflow-y-auto -mx-1 px-1">
+              <div className="max-h-[46vh] overflow-y-auto px-2 pb-1">
                 {options.length === 0 ? (
-                  <p className="font-serif italic text-[13.5px] text-ink-fade m-0 py-2">
+                  <p className="text-[13.5px] text-ink-fade m-0 py-2">
                     no albums yet — make one below.
                   </p>
                 ) : (
@@ -135,7 +135,7 @@ export function AlbumPicker({ open, onOpenChange, photoIds, currentAlbumId, onDo
                             type="button"
                             disabled={busy || here}
                             onClick={() => apply(a.id)}
-                            className={`w-full flex items-center gap-2 px-2.5 py-2 rounded text-left font-serif text-[14.5px] transition-colors ${
+                            className={`w-full flex items-center gap-2 px-2.5 py-2 rounded text-left text-[14.5px] transition-colors ${
                               here
                                 ? "text-ink-fade cursor-default"
                                 : "text-ink-soft hover:text-ink hover:bg-accent/[0.08]"
@@ -147,7 +147,7 @@ export function AlbumPicker({ open, onOpenChange, photoIds, currentAlbumId, onDo
                               <Users className="w-3.5 h-3.5 shrink-0 text-ink-fade" aria-label="shared" />
                             )}
                             {a.owner_id !== me?.id && (
-                              <span className="text-[11.5px] italic text-ink-fade shrink-0">
+                              <span className="text-[11.5px] text-ink-fade shrink-0">
                                 {displayNameFor(a.owner_id)}
                               </span>
                             )}
@@ -160,7 +160,7 @@ export function AlbumPicker({ open, onOpenChange, photoIds, currentAlbumId, onDo
                 )}
               </div>
 
-              <div className="flex items-center justify-between gap-2 mt-4 pt-3 border-t border-line">
+              <div className="flex items-center justify-between gap-2 px-3 py-3 hairline-b" style={{ boxShadow: "inset 0 1px 0 0 rgb(var(--line) / var(--line-a))" }}>
                 <button
                   type="button"
                   className="btn inline-flex items-center gap-1.5"

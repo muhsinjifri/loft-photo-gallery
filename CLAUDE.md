@@ -12,6 +12,7 @@ Each person's library is **private by default**; an album can be marked **shared
 | Database | Cloudflare D1 (SQLite, binding `DB`, name `loft-db`) |
 | Backend + host | **One** Cloudflare Worker `loft-api` serves BOTH the SPA (static `[assets]` from `web/dist`, SPA-fallback routing) AND the `/api` + `/img` routes — same origin. TypeScript + Hono. **No Cloudflare Pages.** |
 | Frontend | React 18 + Vite + TypeScript + Tailwind v3 (+ `@tailwindcss/forms`,`/typography`) + Radix UI + Framer Motion + React Router + Dexie (IndexedDB) |
+| Design | Apple's design language — system palette (systemBlue, system greys), the `-apple-system` font stack (no webfont), vibrancy/blur chrome, hairline separators. Light + dark, defaulting to the OS appearance. |
 | Auth | Cloudflare Access wrapping the Worker domain; policy lists both emails from `ALLOWED_EMAILS`. Identity resolves to a `users` row (`u1` = first email, `u2` = second). |
 | PWA | vite-plugin-pwa (service worker + web manifest, install on phone/desktop) |
 
@@ -40,6 +41,7 @@ loft/
         ├── App.tsx           router (client routes below)
         ├── main.tsx          entry
         ├── api.ts            fetch wrappers (+ ApiError, 401 handler, dev-user cookie)
+        ├── theme.tsx         system | light | dark, persisted; sets data-theme + meta theme-color
         ├── user.tsx          UserProvider / useUser / RequireUser + identity-change guard
         ├── scope.tsx         Mine | Ours toggle state (context + localStorage)
         ├── filter.ts         queryPhotos() — the one predicate behind every grid
@@ -175,6 +177,10 @@ Constants in `shared/src/types.ts`: `THUMB_PX=512`, `PREVIEW_PX=2048`, `JPEG_QUA
 - **Dev identity uses the `loft_dev_user` cookie, not just the `X-Dev-User` header.** `/img/*` is loaded via plain `<img src>`, which cannot send a custom header; a header-only scheme makes every thumbnail 404 the instant you switch user. The header is kept for `curl`. Both are ignored unless `ENV === "dev"`.
 - **`/img/*` checks visibility BEFORE `cache.match`.** The edge cache key is the URL alone, so authorizing after a cache hit would serve the partner's bytes to anyone with the id. Because the D1 gate runs first, the owner does *not* need to be in the cache key.
 - **Un-sharing cannot revoke bytes already in the partner's service-worker cache** (`immutable, max-age=1y`). The D1 gate stops all new reads; already-downloaded thumbnails persist on their device until that cache is cleared.
+- **Design tokens are CSS variables, not Tailwind literals.** `web/src/styles.css` defines the whole palette as space-separated RGB channels per theme; `tailwind.config.ts` maps colour names onto `rgb(var(--x) / <alpha-value>)`, which is what keeps `/opacity` modifiers working through the indirection. Add a colour there, never as a hex in a component — a hardcoded value silently breaks one of the two themes.
+- **The token names (`paper`, `ink`) predate the current design** and are kept because the scale still runs the same direction in both themes; renaming would churn forty files for nothing. `paper-canvas` is the library surface and inverts between themes (white in light, black in dark) the way a macOS split view does.
+- **The Viewer is deliberately dark in both themes.** A photograph is judged against black, and Photos does not lighten its lightbox in light mode, so the viewer chrome uses fixed white-on-black rather than tokens.
+- **Theme is applied by an inline script in `index.html` before first paint.** Without it a dark install flashes the light room for a frame while React boots.
 - **Secrets never go in `wrangler.toml`** (it's committed to git). The IDs there — `database_id`, bucket names, `ALLOWED_EMAILS` — are identifiers, not credentials. This public repo ships them as placeholders (`YOUR_D1_DATABASE_ID`, `you@example.com`); `account_id` is omitted entirely (Wrangler reads `CLOUDFLARE_ACCOUNT_ID` / auto-detects from login). A *real* secret (third-party API key, etc.) goes via `wrangler secret put NAME` (encrypted on CF, accessed as `env.NAME`); local dev equivalents go in `workers/.dev.vars` (gitignored). The wrangler login token lives in `~/Library/Preferences/.wrangler/config/` — never in the repo. Loft currently has zero secrets.
 
 ## Out of Scope (v2+)
