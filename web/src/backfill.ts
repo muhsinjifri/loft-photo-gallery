@@ -1,8 +1,13 @@
-import { db, getMeta, setMeta } from "./db";
+import { db, getMeta, setMeta, CURRENT_USER_KEY } from "./db";
 import { api, imgUrl } from "./api";
 import { generateVideoThumbnails } from "./thumb";
 
-const SKIP_KEY = "backfill_skip";
+const SKIP_KEY_BASE = "backfill_skip";
+
+/** Namespaced per identity — the skip list is about this person's videos. */
+export async function skipKey(): Promise<string> {
+  return `${SKIP_KEY_BASE}:${(await getMeta(CURRENT_USER_KEY)) ?? "unknown"}`;
+}
 
 export interface BackfillProgress {
   done: number;
@@ -21,7 +26,7 @@ export interface BackfillResult {
 let running = false;
 
 async function loadSkip(): Promise<Set<string>> {
-  const raw = await getMeta(SKIP_KEY);
+  const raw = await getMeta(await skipKey());
   if (!raw) return new Set();
   try {
     return new Set(JSON.parse(raw) as string[]);
@@ -31,13 +36,20 @@ async function loadSkip(): Promise<Set<string>> {
 }
 
 async function saveSkip(skip: Set<string>): Promise<void> {
-  await setMeta(SKIP_KEY, JSON.stringify([...skip]));
+  await setMeta(await skipKey(), JSON.stringify([...skip]));
 }
 
-/** Videos still showing a placeholder thumbnail (no real decoded dimensions). */
+/**
+ * Videos I OWN that still show a placeholder thumbnail (no real decoded
+ * dimensions). Scoped to the owner because this feeds api.replaceThumbnail,
+ * which is owner-only — unscoped it would 403 on every one of the partner's
+ * videos, once per run.
+ */
 async function findPlaceholderVideos() {
-  const all = await db.photos.toArray();
-  return all.filter(
+  const meId = await getMeta(CURRENT_USER_KEY);
+  if (!meId) return [];
+  const mine = await db.photos.where("owner_id").equals(meId).toArray();
+  return mine.filter(
     (p) => !p.deleted_at && p.mime.startsWith("video/") && (!p.width || !p.height),
   );
 }

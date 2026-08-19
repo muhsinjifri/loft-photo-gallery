@@ -9,6 +9,7 @@ import {
   Settings as SettingsIcon,
   Plus,
   ChevronDown,
+  Users,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { db } from "../db";
@@ -164,7 +165,12 @@ export function DesktopSidebar() {
                     }`
                   }
                 >
-                  {a.name}
+                  <span className="inline-flex items-center gap-1.5 min-w-0">
+                    <span className="truncate">{a.name}</span>
+                    {a.is_shared === 1 && (
+                      <Users className="w-3 h-3 shrink-0 text-ink-fade" aria-label="shared" />
+                    )}
+                  </span>
                 </NavLink>
               ))
             ) : (

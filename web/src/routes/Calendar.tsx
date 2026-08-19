@@ -1,8 +1,11 @@
 import { Link } from "react-router-dom";
 import { useLiveQuery } from "dexie-react-hooks";
 import { motion } from "framer-motion";
-import { db } from "../db";
 import { imgUrl, cacheVer } from "../api";
+import { queryPhotos } from "../filter";
+import { useScope } from "../scope";
+import { useUser } from "../user";
+import { ScopeToggle } from "../components/ScopeToggle";
 import { EmptyState } from "../components/EmptyState";
 import { CalendarSkeleton } from "../components/skeletons";
 import { SectionDivider, Underline } from "../components/flourishes";
@@ -32,14 +35,17 @@ interface MonthBucket {
 }
 
 export function Calendar() {
+  const { scope } = useScope();
+  const { me } = useUser();
+  // Shares queryPhotos with MasonryGrid so the calendar and the grid can never
+  // disagree about what "Mine" and "Ours" mean.
   const buckets = useLiveQuery(async (): Promise<MonthBucket[]> => {
-    const photos = await db.photos
-      .filter((p) => !p.deleted_at && !!p.year_month)
-      .toArray();
-    photos.sort((a, b) => (b.taken_at ?? b.uploaded_at) - (a.taken_at ?? a.uploaded_at));
+    if (!me) return [];
+    const photos = await queryPhotos({ scope }, me.id);
     const m = new Map<string, MonthBucket>();
     for (const p of photos) {
-      const ym = p.year_month!;
+      if (!p.year_month) continue;
+      const ym = p.year_month;
       const [y, mo] = ym.split("-");
       const year = Number(y);
       const monthIdx = Number(mo) - 1;
@@ -51,7 +57,7 @@ export function Calendar() {
       }
     }
     return Array.from(m.values()).sort((a, b) => b.ym.localeCompare(a.ym));
-  }, []);
+  }, [scope, me?.id]);
 
   if (!buckets) {
     return (
@@ -154,6 +160,9 @@ function Heading() {
         <span className="block mt-1 font-serif italic text-[13.5px] text-ink-fade">
           your year, month by month
         </span>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        <ScopeToggle />
       </div>
       <span className="absolute -bottom-[3px] right-0 w-1.5 h-1.5 rounded-full bg-highlight" />
       <Underline className="block absolute -bottom-[5px] inset-x-0 w-full h-1.5 text-accent/50" />

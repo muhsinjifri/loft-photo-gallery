@@ -9,3 +9,9 @@
 # without logging in. Without this, local API requests return 401 Unauthorized.
 
 ENV=dev
+
+# Who the Worker thinks you are in dev. Two entries lets you exercise the
+# two-user isolation locally. In dev the Worker picks an identity from the
+# `X-Dev-User` header (for curl) or the `loft_dev_user` cookie (for the browser
+# — Settings has a switcher), falling back to the first email here.
+ALLOWED_EMAILS=you@example.com,partner@example.com

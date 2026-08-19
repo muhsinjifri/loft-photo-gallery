@@ -6,6 +6,7 @@ import photos from "./routes/photos";
 import img from "./routes/img";
 import sync from "./routes/sync";
 import albums from "./routes/albums";
+import me from "./routes/me";
 import { findExpiredDeletes, hardDeletePhotos } from "./lib/db";
 import { deleteMany } from "./lib/r2";
 
@@ -28,9 +29,22 @@ app.route("/api/upload", upload);
 app.route("/api/photos", photos);
 app.route("/api/sync", sync);
 app.route("/api/albums", albums);
+app.route("/api/me", me);
 app.route("/img", img);
 
-app.notFound((c) => c.json({ error: "not_found" }, 404));
+// With a Worker present, anything that doesn't match a static asset is handed to
+// the Worker — the [assets] `not_found_handling = "single-page-application"`
+// setting never gets a chance to run. Without this, a hard load or deep link to
+// any client route (/albums, /settings, /not-authorized …) returns JSON instead
+// of the app; it only appeared to work because the service worker was serving
+// the precached shell.
+app.notFound(async (c) => {
+  const { pathname } = new URL(c.req.url);
+  const isApi = pathname.startsWith("/api/") || pathname.startsWith("/img/");
+  const isNavigation = c.req.method === "GET" || c.req.method === "HEAD";
+  if (isApi || !isNavigation) return c.json({ error: "not_found" }, 404);
+  return c.env.ASSETS.fetch(c.req.raw);
+});
 app.onError((e, c) => {
   console.error(e);
   return c.json({ error: "internal", detail: String(e) }, 500);

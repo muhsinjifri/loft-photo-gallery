@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AppShell } from "./components/AppShell";
 import { Home } from "./routes/Home";
 import { Trash } from "./routes/Trash";
@@ -9,32 +9,50 @@ import { AlbumDetail } from "./routes/AlbumDetail";
 import { Calendar } from "./routes/Calendar";
 import { Settings } from "./routes/Settings";
 import { NotAuthorized } from "./routes/NotAuthorized";
-import { syncFromServer } from "./sync";
+import { UserProvider, RequireUser, useUser } from "./user";
+import { syncFromServer, fullResync } from "./sync";
 import { autoBackfill } from "./backfill";
 
-export function App() {
+/**
+ * Drives sync. Lives here rather than in App so it mounts only once an identity
+ * is resolved: the reconcile step needs to know who "me" is, and syncing before
+ * that would write a mirror it cannot attribute.
+ */
+function SyncRunner() {
+  const { me } = useUser();
   useEffect(() => {
-    syncFromServer()
+    if (!me) return;
+    // Boot with the authoritative snapshot; poll with the cheap delta.
+    fullResync()
       .then(() => autoBackfill())
       .catch(console.error);
     const t = setInterval(() => syncFromServer().catch(console.error), 60_000);
     return () => clearInterval(t);
-  }, []);
+  }, [me?.id]);
+  return null;
+}
 
+export function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route element={<AppShell />}>
-          <Route path="/" element={<Home />} />
-          <Route path="/calendar" element={<Calendar />} />
-          <Route path="/m/:ym" element={<Month />} />
-          <Route path="/albums" element={<Albums />} />
-          <Route path="/a/:id" element={<AlbumDetail />} />
-          <Route path="/trash" element={<Trash />} />
-          <Route path="/settings" element={<Settings />} />
+      <UserProvider>
+        <Routes>
+          {/* Outside the guard — it must render for someone with no identity. */}
           <Route path="/not-authorized" element={<NotAuthorized />} />
-        </Route>
-      </Routes>
+          <Route element={<RequireUser />}>
+            <Route element={<AppShell syncRunner={<SyncRunner />} />}>
+              <Route path="/" element={<Home />} />
+              <Route path="/calendar" element={<Calendar />} />
+              <Route path="/m/:ym" element={<Month />} />
+              <Route path="/albums" element={<Albums />} />
+              <Route path="/a/:id" element={<AlbumDetail />} />
+              <Route path="/trash" element={<Trash />} />
+              <Route path="/settings" element={<Settings />} />
+            </Route>
+          </Route>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </UserProvider>
     </BrowserRouter>
   );
 }

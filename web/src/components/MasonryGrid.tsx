@@ -1,17 +1,36 @@
+import { useEffect } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Masonry } from "masonic";
 import { motion } from "framer-motion";
-import { Film } from "lucide-react";
+import { Check, Film } from "lucide-react";
 import type { Photo } from "@loft/shared";
-import { db } from "../db";
 import { imgUrl, cacheVer } from "../api";
+import { useUser } from "../user";
+import { queryPhotos, type PhotoFilter } from "../filter";
 import { useColumnCount } from "../hooks/useColumnCount";
 import { MasonrySkeleton } from "./skeletons";
 
 interface Props {
-  filter: { album_id?: string | null; year_month?: string | null; trash?: boolean };
+  filter: PhotoFilter;
   onOpen: (photos: Photo[], index: number) => void;
   empty?: React.ReactNode;
+  selectMode?: boolean;
+  selected?: Set<string>;
+  /** shiftKey lets the grid extend a range from the last tile touched. */
+  onToggleSelect?: (id: string, index: number, shiftKey: boolean) => void;
+  /** Reports the visible photos so the parent can drive select-all / range logic. */
+  onPhotosChange?: (photos: Photo[]) => void;
+}
+
+interface CardData {
+  photo: Photo;
+  index: number;
+  /** Set when the tile belongs to the other resident, so it can be attributed at a glance. */
+  ownerInitial?: string;
+  /** Filing is owner-only, so the partner's tiles are inert in select mode. */
+  selectable: boolean;
+  selectMode: boolean;
+  checked: boolean;
 }
 
 const DEFAULT_RATIO = 1;
@@ -25,12 +44,15 @@ function MasonryCard({
   data,
   width,
   onOpen,
+  onToggle,
 }: {
-  data: { photo: Photo; index: number };
+  data: CardData;
   width: number;
   onOpen: () => void;
+  onToggle: (shiftKey: boolean) => void;
 }) {
-  const { photo } = data;
+  const { photo, selectMode, selectable, checked } = data;
+  const inert = selectMode && !selectable;
   const ratio = aspect(photo);
   const height = Math.max(80, Math.round(width / ratio));
   const stagger = Math.min(data.index, 24) * 22;
@@ -41,18 +63,55 @@ function MasonryCard({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45, ease: [0.2, 0.7, 0.2, 1], delay: stagger / 1000 }}
-      onClick={onOpen}
-      className="tile block w-full text-left p-0 border-0 outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-paper"
+      onClick={(e) => (selectMode ? onToggle(e.shiftKey) : onOpen())}
+      disabled={inert}
+      aria-pressed={selectMode ? checked : undefined}
+      className={`tile block w-full text-left p-0 border-0 outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-paper ${
+        inert ? "cursor-default" : ""
+      }`}
       style={{ height, background: "var(--c-paper, #EDE5D6)" }}
       aria-label={photo.filename}
+      title={inert ? "only its owner can file this one" : undefined}
     >
       <img
         src={imgUrl.thumb(photo.id, cacheVer(photo))}
         alt={photo.filename}
         loading="lazy"
         className="w-full h-full object-cover block"
-        style={{ filter: "saturate(1.02)" }}
+        style={{
+          filter: "saturate(1.02)",
+          opacity: inert ? 0.45 : checked ? 0.82 : 1,
+          transition: "opacity .15s",
+        }}
       />
+      {selectMode && selectable && (
+        <>
+          <span
+            aria-hidden
+            className="absolute inset-0 pointer-events-none transition-colors"
+            style={{ background: checked ? "rgba(107,130,102,0.28)" : "transparent" }}
+          />
+          <span
+            aria-hidden
+            className="absolute top-2 left-2 w-5 h-5 rounded-full flex items-center justify-center border transition-colors"
+            style={{
+              background: checked ? "var(--c-accent, #6B8266)" : "rgba(250,245,236,0.72)",
+              borderColor: checked ? "var(--c-accent, #6B8266)" : "rgba(42,38,32,0.28)",
+            }}
+          >
+            {checked && <Check className="w-3 h-3 text-paper-tint" strokeWidth={3} />}
+          </span>
+        </>
+      )}
+      {data.ownerInitial ? (
+        <span
+          className="absolute bottom-2 left-2 flex items-center justify-center w-5 h-5 rounded-full text-[10.5px] font-medium text-paper-tint backdrop-blur-md"
+          style={{ background: "rgba(42,38,32,0.78)" }}
+          title={`added by ${data.ownerInitial}`}
+        >
+          {data.ownerInitial}
+        </span>
+      ) : null}
       {photo.duration_ms ? (
         <span
           className="absolute bottom-2 right-2 flex items-center gap-1 px-1.5 py-0.5 rounded-pill text-[10.5px] font-medium tracking-wide text-paper-tint backdrop-blur-md"
@@ -66,29 +125,27 @@ function MasonryCard({
   );
 }
 
-export function MasonryGrid({ filter, onOpen, empty }: Props) {
-  const photos = useLiveQuery(async () => {
-    const rows = await db.photos
-      .filter((p) => {
-        if (filter.trash) {
-          if (!p.deleted_at) return false;
-        } else {
-          if (p.deleted_at) return false;
-        }
-        if (filter.album_id !== undefined && filter.album_id !== null) {
-          if (p.album_id !== filter.album_id) return false;
-        }
-        if (filter.year_month) {
-          if (p.year_month !== filter.year_month) return false;
-        }
-        return true;
-      })
-      .toArray();
-    rows.sort((a, b) => (b.taken_at ?? b.uploaded_at) - (a.taken_at ?? a.uploaded_at));
-    return rows;
-  }, [filter.album_id, filter.year_month, filter.trash]);
+export function MasonryGrid({
+  filter,
+  onOpen,
+  empty,
+  selectMode = false,
+  selected,
+  onToggleSelect,
+  onPhotosChange,
+}: Props) {
+  const { me, displayNameFor } = useUser();
+  const meId = me?.id ?? "";
+  const photos = useLiveQuery(
+    async () => (meId ? queryPhotos(filter, meId) : []),
+    [filter.album_id, filter.year_month, filter.trash, filter.scope, meId],
+  );
 
   const columnCount = useColumnCount();
+
+  useEffect(() => {
+    if (photos) onPhotosChange?.(photos);
+  }, [photos, onPhotosChange]);
 
   if (!photos) {
     return <MasonrySkeleton count={18} />;
@@ -97,12 +154,28 @@ export function MasonryGrid({ filter, onOpen, empty }: Props) {
     return <>{empty}</>;
   }
 
-  const items = photos.map((photo, index) => ({ photo, index }));
+  // Resolved here rather than with a useUser() call inside each cell: masonic
+  // re-renders cells aggressively, so a context read per tile is wasted work.
+  const items: CardData[] = photos.map((photo, index) => ({
+    photo,
+    index,
+    ownerInitial:
+      photo.owner_id && photo.owner_id !== meId
+        ? (displayNameFor(photo.owner_id)[0] ?? "?").toUpperCase()
+        : undefined,
+    selectable: photo.owner_id === meId,
+    selectMode,
+    checked: !!selected?.has(photo.id),
+  }));
 
   return (
     <Masonry
-      // Remount when column count changes so positions recalc cleanly
-      key={`m-${columnCount}-${photos.length}`}
+      // Remount on column count AND scope: flipping scope can land on an
+      // identical photo count with entirely different contents, which would
+      // otherwise leave masonic reusing stale per-item heights.
+      key={`m-${columnCount}-${filter.scope ?? "mine"}-${photos.length}`}
+      // `selected`/`selectMode` deliberately stay OUT of the key: remounting on
+      // every checkbox click would reset masonic's measured layout mid-selection.
       items={items}
       columnCount={columnCount}
       columnGutter={columnCount <= 2 ? 8 : 12}
@@ -113,6 +186,7 @@ export function MasonryGrid({ filter, onOpen, empty }: Props) {
           data={data}
           width={width}
           onOpen={() => onOpen(photos, data.index)}
+          onToggle={(shiftKey) => onToggleSelect?.(data.photo.id, data.index, shiftKey)}
         />
       )}
     />

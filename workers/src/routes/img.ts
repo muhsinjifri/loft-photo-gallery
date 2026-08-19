@@ -1,6 +1,6 @@
 import { Hono, type Context } from "hono";
 import type { Env, AppVariables } from "../env";
-import { getPhoto } from "../lib/db";
+import { getVisiblePhoto } from "../lib/db";
 import type { PhotoKind } from "@loft/shared";
 
 const r = new Hono<{ Bindings: Env; Variables: AppVariables }>();
@@ -13,7 +13,14 @@ type Ctx = Context<{ Bindings: Env; Variables: AppVariables }, "/:id">;
 
 async function serve(c: Ctx, kind: PhotoKind): Promise<Response> {
   const id = c.req.param("id");
-  const photo = await getPhoto(c.env.DB, id);
+  const me = c.get("user");
+
+  // The visibility check MUST stay above cache.match: the cache key is the URL
+  // alone, so a hit served before authorizing would hand the partner's bytes to
+  // anyone who knows the id. Because the check runs first, the owner does not
+  // need to be part of the cache key — the cache stays shared and hit rates are
+  // unchanged.
+  const photo = await getVisiblePhoto(c.env.DB, id, me.id);
   if (!photo) return c.json({ error: "not_found" }, 404);
 
   const key = kind === "thumb" ? photo.thumb_key : kind === "preview" ? photo.preview_key : photo.r2_key;

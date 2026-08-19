@@ -11,7 +11,7 @@ This document explains **why** Loft is built the way it is — the cloud platfor
 | Host model | **Single Worker serves SPA + API** (no Pages) | Same-origin fixes iOS Safari cookie blocking for auth. |
 | API framework | **Hono** | Tiny, fast, Workers-native router with great TS ergonomics. |
 | Blob storage | **R2** | S3-compatible object store with **no egress cost**. |
-| Database | **D1** (SQLite) | Serverless SQL, free tier, perfect for a single-user metadata table. |
+| Database | **D1** (SQLite) | Serverless SQL, free tier, perfect for a small metadata table. |
 | Auth | **Cloudflare Access** | A login wall in front of the Worker — zero auth code to write/maintain. |
 | Frontend | **React + Vite + Tailwind** | Fast DX, familiar, great for a media-heavy SPA + PWA. |
 | Image work | **In the browser** | Keeps the Worker on the free tier (no server CPU for resizing). |
@@ -24,7 +24,7 @@ This document explains **why** Loft is built the way it is — the cloud platfor
 A photo gallery is mostly about **storing big files and serving them cheaply**. That single requirement rules a lot in and out.
 
 - **R2 has no egress fees.** This is the headline reason. On AWS S3, GCS, or Azure Blob, *downloading* your photos (bandwidth out) is where the bill grows — and a gallery is nothing but downloads. R2 charges for storage and operations but **not** for bytes served, so a gallery you browse daily doesn't accumulate a bandwidth bill.
-- **Everything is on one platform's free tier.** Workers, R2, D1, and Access all have free or near-free tiers that comfortably cover a single user. No glue between three different vendors.
+- **Everything is on one platform's free tier.** Workers, R2, D1, and Access all have free or near-free tiers that comfortably cover one or two people. No glue between three different vendors.
 - **It runs at the edge, scales to zero.** No VM or container idling and costing money when you're not looking at photos. A Worker spins up per request and bills per request.
 - **Access gives auth for free.** Cloudflare Access (part of Zero Trust) puts a Google-login wall in front of the app with a one-line email policy — no password storage, sessions, or OAuth code to own.
 
@@ -59,12 +59,15 @@ Request to loft-api.<subdomain>.workers.dev/<path>
         │ yes → run the route handler (JSON API, or stream a blob from R2)
         │ no
         ▼
-3. SPA fallback — not_found_handling = "single-page-application"
-        → serve web/dist/index.html so React Router handles the client route
-          (e.g. /albums, /a/:id, /m/:ym)
+3. SPA fallback — the Hono notFound handler hands GET/HEAD on any
+   non-/api, non-/img path back to env.ASSETS, which serves
+   web/dist/index.html so React Router handles the client route
+   (e.g. /albums, /a/:id, /m/:ym)
 ```
 
 So static assets win first, then the API, and anything left over is treated as a client-side route and handed to the React app. All three live in the same Worker, behind the same Access policy.
+
+> **Why step 3 is code and not just config.** `[assets]` has a `not_found_handling = "single-page-application"` setting that looks like it should do this on its own — but when a Worker script is present, anything that doesn't match a static asset is handed to the *Worker*, and that setting never gets a chance to run. Without the explicit `env.ASSETS.fetch()` fallback, a hard refresh or a deep link to `/albums` returns `{"error":"not_found"}`. It's easy to miss because once the PWA service worker is installed it serves the precached shell for navigations and hides the problem.
 
 ## 3. Why Hono for the API
 
@@ -81,8 +84,8 @@ In short: Express-like DX, but designed for the runtime Loft actually deploys to
 
 Loft separates **blobs** from **metadata**, the standard pattern for media apps:
 
-- **R2 holds the bytes** — three immutable objects per item under key prefixes in one bucket: `orig/<uuid>.<ext>` (the original), `preview/<uuid>.jpg` (2048px), `thumb/<uuid>.jpg` (512px). Because the keys are UUIDs and the files never change, they're served with `Cache-Control: public, max-age=31536000, immutable` and cached forever at the edge.
-- **D1 holds the facts** — one `photos` row per item (filename, dimensions, `taken_at`, `album_id`, EXIF JSON, `deleted_at`, etc.) plus an `albums` table. SQLite is more than enough for a single user's library, and D1 gives it to you serverless and free.
+- **R2 holds the bytes** — three immutable objects per item under key prefixes in one bucket: `u/<owner-id>/orig/<uuid>.<ext>` (the original), `.../preview/<uuid>.jpg` (2048px), `.../thumb/<uuid>.jpg` (512px). The owner prefix is for legibility and per-person accounting, not access control — isolation is enforced in SQL, and every read looks the key up on the D1 row rather than reconstructing it, which is also why objects written before the two-user migration keep their older flat `orig/…` keys and still work. Because the keys are UUIDs and the files never change, they're served with `Cache-Control: public, max-age=31536000, immutable` and cached forever at the edge.
+- **D1 holds the facts** — one `photos` row per item (filename, dimensions, `taken_at`, `album_id`, EXIF JSON, `deleted_at`, etc.) plus an `albums` table. SQLite is more than enough for a household's library, and D1 gives it to you serverless and free.
 
 Why not stuff everything in one place? Object stores can't query ("give me June 2024, newest first") and databases shouldn't hold multi-megabyte blobs. Splitting them lets each do what it's good at: **R2 streams big files cheaply, D1 answers queries.** The `/img/*` routes read from R2; the `/api/*` routes read/write D1.
 
@@ -123,6 +126,38 @@ The trade-off: the client must support the relevant browser APIs, and very large
 - **React + Vite** — fast dev server and build, huge ecosystem, and a good fit for a stateful, media-heavy SPA. Vite also powers the PWA build (`vite-plugin-pwa`) so the app installs to a phone/desktop home screen.
 - **Tailwind (+ Radix UI + Framer Motion)** — utility CSS for quick, consistent styling; Radix for accessible primitives (dialogs, menus); Framer Motion for the viewer/animation polish.
 - **Dexie (IndexedDB) + a delta sync** — the frontend keeps a **local mirror** of the library in IndexedDB so the grid renders instantly and works offline. A lightweight poll to `GET /api/sync?since=<ts>` pulls only what changed (keyed off each row's `updated_at`), so opening the app on a second device quickly reflects album moves, deletes, and new uploads. This is what makes "edit on laptop, see it on phone" work without a heavy realtime backend.
+
+## 7. Why two users, but only two
+
+Loft is a household app, so the sharing model is deliberately the smallest thing that works for two people rather than a general permissions system.
+
+**Identity is positional.** `ALLOWED_EMAILS` is a comma-separated list; the first address is user `u1`, the second `u2`. That sounds fragile, but it buys something significant: the primary user's id is a *compile-time constant*, so migration `0003` can write
+
+```sql
+ALTER TABLE photos ADD COLUMN owner_id TEXT NOT NULL DEFAULT 'u1';
+```
+
+and every pre-existing row is attributed correctly in a single pass — no nullable owner column, no runtime "claim this data" step, no ordering race between whoever happens to log in first. The `users` table exists only to hold display names, and rows are auto-provisioned on a user's first request. Positional ids only matter until each person has logged in once; after that they're matched by email.
+
+**Sharing is a boolean, not a membership table.** With exactly two residents, "this album is shared" and "this album is shared *with the other person*" are the same statement, so visibility is one predicate:
+
+```sql
+owner_id = :me OR album_id IN (SELECT id FROM albums WHERE is_shared = 1)
+```
+
+A third resident breaks this — they would see everything in every shared album — which is why that is listed as out of scope rather than left as an accident waiting to happen. Going to three means an `album_members` table and nothing else changes shape.
+
+**Revocation is the hard part, and it is solved without tombstones.** The client keeps a full Dexie mirror, so when a photo stops being visible the server must actively say so — it cannot simply stop sending it, and the client cannot infer it (the client's `album_id` for that photo is stale by definition). The usual answer is a tombstone table with a retention policy and a horizon to track. Loft instead computes removals on the fly, because the mutation already bumped `updated_at`:
+
+```sql
+SELECT id FROM photos WHERE <changed since :cursor> AND <not visible to :me>
+```
+
+Two consequences worth knowing. Sharing an album must bump `updated_at` on **every photo inside it**, or those photos are older than the partner's sync cursor and the album arrives empty. And the "not visible" half must be written out explicitly rather than as `NOT (...)`: in SQL, `NOT (false OR NULL)` is NULL, so a photo with no album would silently never be reported as removed.
+
+**What isolation does and does not cover.** Every read resolves the R2 key from the D1 row *after* the visibility check, and `/img/*` performs that check before consulting the edge cache — so un-sharing takes effect immediately for new requests, and the cache stays shared across users without leaking. It does **not** reach bytes already sitting in the partner's service-worker cache, which are `immutable, max-age=1y`; those persist on their device until cleared. For a couple sharing a photo loft that is an acceptable trade, but it is a real property, not an oversight.
+
+**One thing that is not hardened.** The Worker trusts the `Cf-Access-Authenticated-User-Email` header without verifying the `Cf-Access-Jwt-Assertion` JWT, relying on the origin being unreachable except through Access. With one user that was an authentication detail; with two it is a *tenancy* boundary, and verifying the JWT (fetch the team's JWKS, check signature + audience) is the obvious next hardening step.
 
 ## How it all connects (the full picture)
 

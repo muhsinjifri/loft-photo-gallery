@@ -1,4 +1,7 @@
+import type { ReactNode } from "react";
 import { Outlet } from "react-router-dom";
+import * as Tooltip from "@radix-ui/react-tooltip";
+import { ScopeProvider } from "../scope";
 import { DesktopSidebar } from "./DesktopSidebar";
 import { MobileTopBar } from "./MobileTopBar";
 import { MobileBottomNav } from "./MobileBottomNav";
@@ -10,9 +13,11 @@ import {
   UploadProgressSheet,
 } from "./Upload";
 
-export function AppShell() {
+export function AppShell({ syncRunner }: { syncRunner?: ReactNode }) {
   return (
-    <UploadProvider>
+    <ScopeProvider>
+      <Tooltip.Provider delayDuration={200}>
+        <UploadProvider>
       <KeyboardShortcutsProvider>
         <div className="md:grid md:grid-cols-[auto_1fr] min-h-screen">
           <DesktopSidebar />
@@ -36,7 +41,10 @@ export function AppShell() {
         <UploadFAB />
         <UploadDropZone />
         <UploadProgressSheet />
+        {syncRunner}
       </KeyboardShortcutsProvider>
-    </UploadProvider>
+        </UploadProvider>
+      </Tooltip.Provider>
+    </ScopeProvider>
   );
 }

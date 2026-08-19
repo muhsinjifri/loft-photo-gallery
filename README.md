@@ -1,8 +1,8 @@
 # Loft
 
-A personal, single-user **photo + video gallery** ("loft") that runs almost entirely on Cloudflare's free tier — target cost **~$0–3/month**. Upload from any device, browse a fast masonry timeline, organize into albums, and install it as a PWA on your phone or desktop.
+A personal **photo + video gallery** ("loft") for two people that runs almost entirely on Cloudflare's free tier — target cost **~$0–3/month**. Upload from any device, browse a fast masonry timeline, organize into albums, and install it as a PWA on your phone or desktop.
 
-> Loft is intentionally **single-user and private**: the whole app sits behind Cloudflare Access locked to one email. It is not a multi-tenant product — it's a self-hosted loft for *your* memories.
+> Loft is intentionally **private and small**: the whole app sits behind Cloudflare Access locked to the one or two emails you list. Each person's library is private by default; mark an album **shared** and you both see it and can add to it. Only the person who uploaded a photo can delete it, even inside a shared album. It is not a multi-tenant product — it's a self-hosted loft for *your* memories.
 
 ![Loft home timeline](docs/screenshot-home.png)
 
@@ -119,7 +119,7 @@ npx wrangler r2 bucket create loft-preview
 npx wrangler d1 create loft-db
 
 # 4. Set your allowed email in workers/wrangler.toml
-#    [vars] ALLOWED_EMAIL = "you@example.com"
+#    [vars] ALLOWED_EMAILS = "you@example.com,partner@example.com"
 
 # 5. Apply migrations to production D1
 npm run db:migrate:remote
@@ -130,13 +130,13 @@ npm run deploy
 
 Then, in the Cloudflare dashboard:
 
-7. **Zero Trust → Access → Applications** → add a self-hosted app wrapping your Worker domain (`loft-api.<your-subdomain>.workers.dev`), with a policy allowing only your email. This is what makes the loft private.
+7. **Zero Trust → Access → Applications** → add a self-hosted app wrapping your Worker domain (`loft-api.<your-subdomain>.workers.dev`), with a policy allowing exactly the emails in `ALLOWED_EMAILS`. This is what makes the loft private, and it is a separate gate from the Worker's own check — if it doesn't list your partner, they never get in.
 
 ### Notes on configuration
 
 - **`account_id`** is read from the `CLOUDFLARE_ACCOUNT_ID` environment variable (or auto-detected from `wrangler login`). It's commented out in `wrangler.toml`; set it only if your login has multiple accounts.
 - **`database_id`** must be a literal in `wrangler.toml` — Wrangler does not interpolate env vars into binding IDs. Paste the id from step 3.
-- **`ALLOWED_EMAIL`** is a Worker `[vars]` value (`env.ALLOWED_EMAIL`) used by the auth check. It's not a secret, just config.
+- **`ALLOWED_EMAILS`** is a Worker `[vars]` value (comma-separated) used by the auth check. It's not a secret, just config. **Order matters on the first deploy**: the first email becomes user `u1`, who migration `0003` assigns every pre-existing photo and album to. Put your own address first.
 - **Real secrets** (if you ever add a third-party API key) go via `npx wrangler secret put NAME`, never in `wrangler.toml`. For local dev, use `workers/.dev.vars` (gitignored).
 
 ## How the image pipeline works
@@ -162,7 +162,8 @@ R2 keys (`orig/<uuid>.<ext>`, `preview/<uuid>.jpg`, `thumb/<uuid>.jpg`) are immu
 
 This is a deliberately small, personal project. Not included (and mostly not planned):
 
-- **Multi-user / sharing** — single-user by design.
+- **More than two people** — the sharing model uses a single `is_shared` flag, which only behaves correctly for exactly two residents; a third would need a proper album-membership table.
+- **Per-photo sharing** — sharing is per album by design.
 - **Video transcoding** — originals are served as-is; your browser must support the codec.
 - **Uploads > 100 MB** — rejected by the Worker free-tier body limit (a presigned-R2-PUT flow is a possible v2).
 - Face recognition, native mobile app, bulk CLI import, and a map view (GPS is captured but not yet surfaced).

@@ -9,8 +9,15 @@ compatibility_flags = ["nodejs_compat"]
 
 [vars]
 ENV = "prod"
-# The single email allowed past Cloudflare Access. Set this to your own.
-ALLOWED_EMAIL = "you@example.com"
+# Comma-separated list of emails allowed past Cloudflare Access.
+#
+# ORDER IS LOAD-BEARING ON FIRST DEPLOY: the first email becomes user "u1", who
+# migration 0003 assigns every pre-existing photo and album to. Put your own
+# address first. After both users have logged in once, order no longer matters.
+#
+# The Cloudflare Access policy is a separate, independent gate — it must list
+# both addresses too, or the second person never reaches the Worker at all.
+ALLOWED_EMAILS = "you@example.com,partner@example.com"
 
 [assets]
 directory = "../web/dist"

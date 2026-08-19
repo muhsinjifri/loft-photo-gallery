@@ -53,11 +53,16 @@ r.post("/", async (c) => {
     return c.json({ error: "invalid_metadata_json" }, 400);
   }
 
+  const me = c.get("user");
   const id = uuid();
   const ext = extFromMime(meta.mime, meta.filename);
-  const origKey = `orig/${id}.${ext}`;
-  const previewKey = `preview/${id}.jpg`;
-  const thumbKey = `thumb/${id}.jpg`;
+  // Owner-prefixed so the bucket is legible per person and per-user lifecycle
+  // rules stay possible. Pre-0003 objects keep their flat keys and keep working:
+  // every read resolves the key off the row, never by reconstructing it.
+  const prefix = `u/${me.id}`;
+  const origKey = `${prefix}/orig/${id}.${ext}`;
+  const previewKey = `${prefix}/preview/${id}.jpg`;
+  const thumbKey = `${prefix}/thumb/${id}.jpg`;
 
   await Promise.all([
     putBlob(c.env.BUCKET, origKey, original),
@@ -84,6 +89,8 @@ r.post("/", async (c) => {
     exif_json: meta.exif ? JSON.stringify(meta.exif) : null,
     deleted_at: null,
     updated_at: now,
+    media_updated_at: null,
+    owner_id: me.id,
   };
 
   try {

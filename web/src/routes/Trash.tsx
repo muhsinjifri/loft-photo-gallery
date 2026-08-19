@@ -3,7 +3,7 @@ import { GalleryView } from "./GalleryView";
 export function Trash() {
   return (
     <GalleryView
-      filter={{ trash: true }}
+      filter={{ trash: true, scope: "mine" }}
       title="Trash"
       subtitle="resting for thirty days"
       emptyKind="trash"

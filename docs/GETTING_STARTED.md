@@ -147,15 +147,17 @@ database_id = "YOUR_D1_DATABASE_ID"
 
 …and replace `YOUR_D1_DATABASE_ID` with the id you just copied. (This id has to be written into the file — it can't be an environment variable.)
 
-### Step 4 — Set your email
+### Step 4 — Set who can log in
 
 In the same **`workers/wrangler.toml`**, find:
 
 ```toml
-ALLOWED_EMAIL = "you@example.com"
+ALLOWED_EMAILS = "you@example.com,partner@example.com"
 ```
 
-Change it to the email **you'll log in with**. This is the only person the deployed app will let in.
+Change it to the email(s) you'll log in with — one address, or two separated by a comma. These are the only people the deployed app will let in.
+
+> **Order matters, once.** The **first** email becomes user `u1`, and the database migration assigns every photo and album that already exists to them. If you're adding a second person to a Loft you've been using alone, put **your own address first** or your partner inherits your whole library. After you've both logged in once, order stops mattering — people are matched by email from then on.
 
 ### Step 5 — Build the database tables in production
 
@@ -186,12 +188,14 @@ This is what makes the Loft private *and* what lets **you** log in. The easiest 
 1. In the [Cloudflare dashboard](https://dash.cloudflare.com), go to **Workers & Pages** and click your **`loft-api`** Worker.
 2. Go to **Settings → Domains & Routes**.
 3. Next to your `workers.dev` URL, click **Enable Cloudflare Access**.
-4. Click **Manage Cloudflare Access** and make sure the policy allows **only your email** (the same one you set as `ALLOWED_EMAIL` in Step 4). Remove any broader rules.
+4. Click **Manage Cloudflare Access** and make sure the policy allows **exactly the emails you set as `ALLOWED_EMAILS`** in Step 4 — both of them, if there are two. Remove any broader rules.
+
+> This is a **separate gate** from the Worker's own check, and it comes first. If you add your partner to `wrangler.toml` but forget them here, they'll be stopped at the Cloudflare login screen and never reach the app.
 5. Save.
 
 > The first time you use Access, Cloudflare may ask you to set up **Zero Trust** (pick a team name; the free plan covers up to 50 users). For the login method, **One-time PIN** is the simplest — Cloudflare emails you a code, no Google setup required. You can switch to Google login later if you prefer.
 
-Behind the scenes: after you log in, Access adds a verified `Cf-Access-Authenticated-User-Email` header to every request, and the Worker only lets the request through if that email matches `ALLOWED_EMAIL`. That's the whole auth model.
+Behind the scenes: after you log in, Access adds a verified `Cf-Access-Authenticated-User-Email` header to every request, and the Worker only lets the request through if that email is in `ALLOWED_EMAILS`. It then looks the address up in a small `users` table (creating the row on first sight) to decide which photos are yours. That's the whole auth model.
 
 ### Step 8 — Use it
 
@@ -238,7 +242,9 @@ If a change adds a new database migration, also run `npm run db:migrate:remote` 
 | **Local app loads but shows no photos; API calls are `401`** | Missing dev flag | Create `workers/.dev.vars` with `ENV=dev` (`cp workers/.dev.vars.example workers/.dev.vars`), then restart `npm run dev:api`. |
 | **`node -v` shows v18/v20** | Wrong Node version | Install Node 22 (`nvm install 22 && nvm use 22`). |
 | **Deploy succeeds but the live site shows nothing / `401`** | Access login not set up yet | Do Part B, Step 7 (Enable Cloudflare Access) and log in. |
-| **You can log in but get "not authorized"** | `ALLOWED_EMAIL` doesn't match your login email | Make the email in `wrangler.toml` and the email in the Access policy identical, then `npm run deploy`. |
+| **You can log in but get "not authorized"** | Your login email isn't in `ALLOWED_EMAILS` | Make the addresses in `wrangler.toml` and the Access policy match exactly, then `npm run deploy`. |
+| **Your partner logs in and sees your whole library** | Their email was listed *first* in `ALLOWED_EMAILS`, so they became `u1` and inherited the pre-existing photos | Put your own address first and re-run the migration on a fresh database, or reassign with `wrangler d1 execute loft-db --remote --command "UPDATE photos SET owner_id='u1'"`. |
+| **A newly shared album looks empty to your partner** | They haven't polled yet | Sync runs every 60s; hit **Sync now** in Settings to force it. |
 | **`database_id` / "no such table" errors after deploy** | Forgot to paste the D1 id or run remote migrations | Re-check Step 3 (paste the real id) and run `npm run db:migrate:remote`. |
 | **Upload of a large video is rejected** | Worker free-tier request limit | Files must be **under 100 MB**. |
 | **A video's thumbnail is wrong/black** | Codec not supported, or unusual frames | The original still plays if your browser supports the codec; thumbnails are best-effort. |
@@ -248,7 +254,7 @@ If a change adds a new database migration, also run `npm run db:migrate:remote` 
 
 ## What it costs
 
-For a single user with a personal library, Loft typically lands at **$0–3/month**:
+For one or two people with a personal library, Loft typically lands at **$0–3/month**:
 
 - **Workers, D1, Access** — comfortably within the free tiers at this scale, and **no payment method required** to use them.
 - **R2** — **does require a payment method to activate** (a one-time step when you create your first bucket), but it has a generous free tier and bills only for what you go over:

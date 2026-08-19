@@ -11,10 +11,14 @@ import {
   Trash2,
   Info,
   Undo2,
+  FolderPlus,
 } from "lucide-react";
+import * as Tooltip from "@radix-ui/react-tooltip";
 import type { Photo } from "@loft/shared";
 import { api, imgUrl, cacheVer } from "../api";
 import { db } from "../db";
+import { useUser } from "../user";
+import { AlbumPicker } from "./AlbumPicker";
 
 interface Props {
   photos: Photo[];
@@ -48,11 +52,16 @@ function formatDate(ts: number | null): string {
 export function Viewer({ photos, index, onIndexChange, onClose }: Props) {
   const photo = photos[index];
   const isVideo = photo?.mime.startsWith("video/") ?? false;
+  const { me, partner, displayNameFor } = useUser();
+  // Only the uploader may delete or restore, even inside a shared album. The
+  // server enforces this too — what follows is affordance, not security.
+  const mine = !!photo && !!me && photo.owner_id === me.id;
 
   const [zoomed, setZoomed] = useState(false);
   const [showChrome, setShowChrome] = useState(true);
   const [infoOpen, setInfoOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [albumPickerOpen, setAlbumPickerOpen] = useState(false);
   const chromeTimerRef = useRef<number | null>(null);
 
   const dragY = useMotionValue(0);
@@ -85,6 +94,12 @@ export function Viewer({ photos, index, onIndexChange, onClose }: Props) {
   // Keyboard
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
+      // The album picker puts a text input above the viewer, and this listener is
+      // on window — without this guard, typing a name would page through photos
+      // and "a"/Delete would fire mid-word.
+      const t = e.target as HTMLElement | null;
+      if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+
       if (e.key === "ArrowLeft") {
         e.preventDefault();
         goPrev();
@@ -96,15 +111,22 @@ export function Viewer({ photos, index, onIndexChange, onClose }: Props) {
       } else if (e.key === "i" || e.key === "I") {
         setInfoOpen((v) => !v);
         ping();
+      } else if (e.key === "a" || e.key === "A") {
+        if (mine && !photo?.deleted_at) {
+          setAlbumPickerOpen(true);
+          ping();
+        }
       } else if (e.key === "Delete" || e.key === "Backspace") {
-        if (!photo?.deleted_at) {
+        // `mine` must be in the dep array below, or the partner's photo stays
+        // deletable by keyboard even with the button hidden.
+        if (mine && !photo?.deleted_at) {
           setConfirmDelete(true);
         }
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [goPrev, goNext, ping, photo?.deleted_at]);
+  }, [goPrev, goNext, ping, photo?.deleted_at, mine]);
 
   const springBack = useCallback(() => {
     animate(dragX, 0, { type: "spring", stiffness: 400, damping: 36 });
@@ -194,7 +216,7 @@ export function Viewer({ photos, index, onIndexChange, onClose }: Props) {
   }, [photo?.id, dragX, dragY, scale]);
 
   async function handleDelete() {
-    if (!photo) return;
+    if (!photo || !mine) return;
     await api.deletePhoto(photo.id);
     await db.photos.update(photo.id, { deleted_at: Date.now() });
     setConfirmDelete(false);
@@ -205,7 +227,7 @@ export function Viewer({ photos, index, onIndexChange, onClose }: Props) {
   }
 
   async function handleRestore() {
-    if (!photo) return;
+    if (!photo || !mine) return;
     await api.restorePhoto(photo.id);
     await db.photos.update(photo.id, { deleted_at: null });
     onClose();
@@ -287,6 +309,12 @@ export function Viewer({ photos, index, onIndexChange, onClose }: Props) {
                     style={{ color: "rgba(245,235,215,0.78)" }}
                   >
                     {photo.filename}
+                    {!mine && partner && (
+                      <span style={{ color: "rgba(245,235,215,0.5)" }}>
+                        {" "}
+                        · {displayNameFor(photo.owner_id)}
+                      </span>
+                    )}
                   </div>
                   <button
                     type="button"
@@ -302,6 +330,21 @@ export function Viewer({ photos, index, onIndexChange, onClose }: Props) {
                   >
                     <Info className="w-4 h-4" />
                   </button>
+                  {mine && !photo.deleted_at && (
+                    <button
+                      type="button"
+                      className="btn btn-icon"
+                      aria-label="Add to album"
+                      onClick={() => setAlbumPickerOpen(true)}
+                      style={{
+                        background: "rgba(245,235,215,0.08)",
+                        color: "#FAF5EC",
+                        borderColor: "rgba(245,235,215,0.18)",
+                      }}
+                    >
+                      <FolderPlus className="w-4 h-4" />
+                    </button>
+                  )}
                   <a
                     href={imgUrl.orig(photo.id)}
                     download={photo.filename}
@@ -316,14 +359,16 @@ export function Viewer({ photos, index, onIndexChange, onClose }: Props) {
                     <Download className="w-4 h-4" />
                   </a>
                   {photo.deleted_at ? (
-                    <button
-                      type="button"
-                      onClick={handleRestore}
-                      className="btn btn-primary inline-flex items-center gap-1.5"
-                    >
-                      <Undo2 className="w-4 h-4" /> Restore
-                    </button>
-                  ) : (
+                    mine ? (
+                      <button
+                        type="button"
+                        onClick={handleRestore}
+                        className="btn btn-primary inline-flex items-center gap-1.5"
+                      >
+                        <Undo2 className="w-4 h-4" /> Restore
+                      </button>
+                    ) : null
+                  ) : mine ? (
                     <button
                       type="button"
                       onClick={() => setConfirmDelete(true)}
@@ -337,6 +382,35 @@ export function Viewer({ photos, index, onIndexChange, onClose }: Props) {
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
+                  ) : (
+                    // Disabled with an explanation on desktop, where hover can
+                    // teach the rule; hidden on touch, where a dead button is
+                    // just confusing.
+                    <Tooltip.Root>
+                      <Tooltip.Trigger asChild>
+                        <span
+                          aria-disabled="true"
+                          className="btn btn-icon hidden sm:inline-flex opacity-40 cursor-not-allowed"
+                          style={{
+                            background: "rgba(245,235,215,0.08)",
+                            color: "#FAF5EC",
+                            borderColor: "rgba(245,235,215,0.18)",
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </span>
+                      </Tooltip.Trigger>
+                      <Tooltip.Portal>
+                        <Tooltip.Content
+                          side="bottom"
+                          sideOffset={6}
+                          className="z-[200] px-2 py-1 rounded font-serif italic text-[12.5px] text-paper-tint"
+                          style={{ background: "rgba(42,38,32,0.92)" }}
+                        >
+                          only {displayNameFor(photo.owner_id)} can delete this
+                        </Tooltip.Content>
+                      </Tooltip.Portal>
+                    </Tooltip.Root>
                   )}
                 </motion.header>
               )}
@@ -535,6 +609,12 @@ export function Viewer({ photos, index, onIndexChange, onClose }: Props) {
                     </dd>
                     <dt className="text-ink-fade italic">type</dt>
                     <dd className="text-ink-soft m-0">{photo.mime}</dd>
+                    {partner && (
+                      <>
+                        <dt className="text-ink-fade italic">added by</dt>
+                        <dd className="text-ink-soft m-0">{displayNameFor(photo.owner_id)}</dd>
+                      </>
+                    )}
                     {exifSummary &&
                       (() => {
                         const make = exifSummary.Make as string | undefined;
@@ -555,6 +635,15 @@ export function Viewer({ photos, index, onIndexChange, onClose }: Props) {
           </motion.div>
         </Dialog.Content>
       </Dialog.Portal>
+
+      {photo && (
+        <AlbumPicker
+          open={albumPickerOpen}
+          onOpenChange={setAlbumPickerOpen}
+          photoIds={[photo.id]}
+          currentAlbumId={photo.album_id}
+        />
+      )}
 
       <AlertDialog.Root open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialog.Portal>

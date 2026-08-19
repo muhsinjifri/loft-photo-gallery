@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { RefreshCw, Download as DownloadIcon, Trash2, Film, LogOut } from "lucide-react";
-import { db } from "../db";
-import { syncFromServer } from "../sync";
-import { backfillVideoThumbnails, countPlaceholderVideos } from "../backfill";
+import { db, LAST_SYNC_KEY } from "../db";
+import { syncFromServer, clearImageCaches, wipeLocalIdentityData } from "../sync";
+import { backfillVideoThumbnails, countPlaceholderVideos, skipKey } from "../backfill";
+import { getDevUser, setDevUser } from "../api";
+import { loadSharedAlbumIds } from "../filter";
+import { useUser } from "../user";
 import { Underline } from "../components/flourishes";
 
 interface BeforeInstallPromptEvent extends Event {
@@ -12,14 +15,32 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 export function Settings() {
+  const { me, partner, stale } = useUser();
+
   const lastSync = useLiveQuery(async () => {
     const row = await db.meta.get("last_sync");
     const n = row?.value ? Number(row.value) : 0;
     return Number.isFinite(n) && n > 0 ? n : 0;
   }, []);
 
-  const photoCount = useLiveQuery(() => db.photos.count(), []);
-  const albumCount = useLiveQuery(() => db.albums.count(), []);
+  const counts = useLiveQuery(async () => {
+    if (!me) return null;
+    const sharedIds = await loadSharedAlbumIds();
+    const albums = await db.albums.toArray();
+    let mine = 0;
+    let shared = 0;
+    await db.photos.each((p) => {
+      if (p.deleted_at) return;
+      if (p.owner_id === me.id) mine++;
+      if (p.album_id && sharedIds.has(p.album_id)) shared++;
+    });
+    return {
+      mine,
+      shared,
+      albumsMine: albums.filter((a) => a.owner_id === me.id).length,
+      albumsShared: albums.filter((a) => a.is_shared === 1).length,
+    };
+  }, [me?.id]);
 
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [syncing, setSyncing] = useState(false);
@@ -73,7 +94,13 @@ export function Settings() {
     if (!confirm("Clear local cache? You'll re-download thumbs on next visit.")) return;
     await db.photos.clear();
     await db.albums.clear();
-    await db.meta.clear();
+    // Deliberately NOT db.meta.clear(): that would drop the cached identity, and
+    // the next offline boot would have no idea whose mirror this is.
+    await db.meta.delete(LAST_SYNC_KEY);
+    await db.meta.delete(await skipKey());
+    // The service-worker thumb/preview caches are most of what "cache" means to
+    // someone pressing this button, and the old version never touched them.
+    await clearImageCaches();
     location.reload();
   }
 
@@ -116,7 +143,24 @@ export function Settings() {
       <div className="space-y-5 max-w-[640px]">
         <Section title="Account">
           <Row label="Signed in as">
-            <span className="text-ink-soft">authorized via Cloudflare Access</span>
+            <div className="flex flex-col">
+              <span className="text-ink-soft">{me?.display_name ?? "—"}</span>
+              <span className="text-[12.5px] italic text-ink-fade">{me?.email}</span>
+              {stale && (
+                <span className="text-[12.5px] italic text-ink-fade">
+                  showing your last-known account — you're offline.
+                </span>
+              )}
+            </div>
+          </Row>
+          <Row label="Sharing with">
+            <span className="text-ink-soft">
+              {partner ? (
+                partner.display_name
+              ) : (
+                <span className="italic text-ink-fade">no one else yet</span>
+              )}
+            </span>
           </Row>
           <Row label="Session">
             <button
@@ -210,14 +254,42 @@ export function Settings() {
           </p>
         </Section>
 
+        {import.meta.env.DEV && (
+          <Section title="Dev">
+            <Row label="Act as">
+              <select
+                value={getDevUser() ?? ""}
+                onChange={async (e) => {
+                  setDevUser(e.target.value || null);
+                  // Reuse the real identity-change guard rather than a dev-only
+                  // shortcut, so the highest-risk path in the app gets exercised
+                  // constantly during development instead of once in production.
+                  await wipeLocalIdentityData();
+                  location.reload();
+                }}
+                className="rounded border border-line-strong bg-paper-tint px-2 py-1 font-serif text-[13.5px] text-ink outline-none focus:border-accent"
+              >
+                <option value="">default (first allowed email)</option>
+                <option value="1">user 1</option>
+                <option value="2">user 2</option>
+              </select>
+            </Row>
+            <p className="text-[12.5px] italic text-ink-fade m-0">
+              sets the loft_dev_user cookie; honored only when the Worker's ENV is "dev".
+            </p>
+          </Section>
+        )}
+
         <Section title="About">
           <Row label="Version">
             <span className="text-ink-soft font-mono text-[13px]">{version}</span>
           </Row>
           <Row label="In your loft">
             <span className="text-ink-soft text-[13.5px]">
-              {photoCount ?? 0} {photoCount === 1 ? "picture" : "pictures"} ·{" "}
-              {albumCount ?? 0} {albumCount === 1 ? "album" : "albums"}
+              {counts?.mine ?? 0} {counts?.mine === 1 ? "picture" : "pictures"} yours
+              {partner ? ` · ${counts?.shared ?? 0} in shared albums` : ""} ·{" "}
+              {counts?.albumsMine ?? 0} {counts?.albumsMine === 1 ? "album" : "albums"}
+              {partner ? ` (${counts?.albumsShared ?? 0} shared)` : ""}
             </span>
           </Row>
         </Section>

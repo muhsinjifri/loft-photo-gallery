@@ -1,5 +1,7 @@
 import { useParams } from "react-router-dom";
 import { GalleryView } from "./GalleryView";
+import { ScopeToggle } from "../components/ScopeToggle";
+import { useScope } from "../scope";
 
 function formatMonth(ym: string) {
   const [y, m] = ym.split("-");
@@ -24,14 +26,16 @@ function formatMonth(ym: string) {
 
 export function Month() {
   const { ym } = useParams();
+  const { scope } = useScope();
   return (
     <GalleryView
-      filter={{ year_month: ym ?? null }}
+      filter={{ year_month: ym ?? null, scope }}
       title={ym ? formatMonth(ym) : ""}
       subtitle="a month, as it was"
       emptyKind="month"
       emptyTitle="quiet month"
       emptySub="nothing was kept from this stretch."
+      rightSlot={<ScopeToggle />}
     />
   );
 }
