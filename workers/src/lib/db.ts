@@ -331,6 +331,33 @@ export async function updateAlbum(
   return await db.prepare("SELECT * FROM albums WHERE id = ?").bind(id).first<Album>();
 }
 
+/**
+ * Delete an album. The pictures in it are NOT deleted — they are unfiled, which
+ * is what "delete album" means everywhere else and what people expect.
+ *
+ * Every photo is unfiled, including the other person's if this was a shared
+ * album. Leaving their album_id pointing at a row that no longer exists would be
+ * dangling data, and the alternative — refusing to delete until they clear their
+ * own pictures out — makes the owner's album hostage to someone else. Their
+ * photos stay entirely theirs; they just stop being in a collection that is gone.
+ *
+ * The caller must have already established ownership: the UPDATE is
+ * unconditional, so running this for a non-owner would unfile photos and then
+ * fail to delete anything.
+ */
+export async function deleteAlbum(
+  db: D1Database,
+  id: string,
+  ownerId: string,
+  now: number,
+): Promise<boolean> {
+  const results = await db.batch([
+    db.prepare("UPDATE photos SET album_id = NULL, updated_at = ? WHERE album_id = ?").bind(now, id),
+    db.prepare("DELETE FROM albums WHERE id = ? AND owner_id = ?").bind(id, ownerId),
+  ]);
+  return (results[1].meta?.changes ?? 0) > 0;
+}
+
 export async function changedSince(
   db: D1Database,
   viewerId: string,

@@ -145,7 +145,13 @@ Open **`workers/wrangler.toml`**, find the line:
 database_id = "YOUR_D1_DATABASE_ID"
 ```
 
-…and replace `YOUR_D1_DATABASE_ID` with the id you just copied. (This id has to be written into the file — it can't be an environment variable.)
+…and replace `YOUR_D1_DATABASE_ID` with the id you just copied. (This id has to be written into the file — Wrangler has no environment-variable substitution in its config.)
+
+> **First, create the file.** `workers/wrangler.toml` is gitignored, because the id names a database in your account. Start from the template:
+>
+> ```bash
+> cp workers/wrangler.toml.example workers/wrangler.toml
+> ```
 
 ### Step 4 — Set who can log in
 

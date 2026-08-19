@@ -69,3 +69,28 @@ export async function listUsers(db: D1Database): Promise<PublicUser[]> {
   const res = await db.prepare("SELECT id, display_name FROM users ORDER BY id").all<PublicUser>();
   return res.results ?? [];
 }
+
+/**
+ * Everyone who lives here, whether or not they have ever opened the app.
+ *
+ * `users` rows are only written on a person's first request, so a freshly
+ * deployed two-person Loft looks single-user until the second person visits —
+ * which hid every sharing control behind the very thing it was needed for. Ids
+ * are positional, so a configured email's id is knowable in advance; entries
+ * without a row are returned as `pending` with a name derived from the address.
+ */
+export async function roster(db: D1Database, emails: string[]): Promise<PublicUser[]> {
+  const existing = await listUsers(db);
+  const byId = new Map(existing.map((u) => [u.id, u]));
+
+  const configured = emails.map((email, i) => {
+    const id = `u${i + 1}`;
+    const row = byId.get(id);
+    byId.delete(id);
+    return row ?? { id, display_name: defaultDisplayName(email), pending: true };
+  });
+
+  // Anyone provisioned who is no longer in ALLOWED_EMAILS still owns photos, so
+  // keep them in the roster or their pictures lose their attribution.
+  return [...configured, ...byId.values()];
+}

@@ -105,6 +105,7 @@ npm run typecheck
 | GET | `/api/sync?since=<ts>` | delta for Dexie mirror (see **Sync contract**) |
 | GET / POST | `/api/albums` | list / create |
 | PATCH | `/api/albums/:id` | rename / share / unshare — **owner only** |
+| DELETE | `/api/albums/:id` | delete the album — **owner only**; photos are unfiled, never deleted |
 | GET / PATCH | `/api/me` | current user + everyone's display names |
 | GET | `/img/{thumb,preview,orig}/:id` | R2 serve, edge-cached |
 | GET | `/health` | unauthenticated probe |
@@ -137,6 +138,7 @@ Constants in `shared/src/types.ts`: `THUMB_PX=512`, `PREVIEW_PX=2048`, `JPEG_QUA
 | Delete / restore / re-thumbnail | **owner only** → 403 |
 | Move a photo to an album | must own the photo, and the target album must be own-or-shared |
 | Rename / share / unshare an album | **album owner only** → 403 |
+| Delete an album | **album owner only** → 403. Photos are unfiled (`album_id = NULL`), never deleted — including the partner's, since a dangling `album_id` is worse than unfiling and the owner shouldn't need the other person's permission to dismantle their own album. |
 | Add your photo to the partner's shared album | allowed |
 
 404 means "you can't see it" (never confirm the partner's private content exists); 403 means "you can see it but may not do that".
@@ -182,8 +184,9 @@ Constants in `shared/src/types.ts`: `THUMB_PX=512`, `PREVIEW_PX=2048`, `JPEG_QUA
 - **The token names (`paper`, `ink`) predate the current design** and are kept because the scale still runs the same direction in both themes; renaming would churn forty files for nothing. `paper-canvas` is the library surface and inverts between themes (white in light, black in dark) the way a macOS split view does.
 - **The Viewer is deliberately dark in both themes.** A photograph is judged against black, and Photos does not lighten its lightbox in light mode, so the viewer chrome uses fixed white-on-black rather than tokens.
 - **Theme is applied by an inline script in `index.html` before first paint.** Without it a dark install flashes the light room for a frame while React boots.
+- **`/api/me` returns the configured roster, not just provisioned users.** `users` rows are written on a person's first request, so a freshly deployed two-person Loft would look single-user until the second person visited — hiding every sharing control behind the very thing it was needed for. Ids are positional, so an allowed email's id is knowable in advance; entries with no row come back `pending: true`.
 - **`ALLOWED_EMAILS` is an encrypted secret, not a `[vars]` entry.** The repo is public and the value is two real personal addresses. A dashboard *Variable* would not survive — `wrangler deploy` overwrites the plaintext vars bag from `wrangler.toml` — so it has to be `wrangler secret put`. `env.ALLOWED_EMAILS` reads identically either way, so there is no code difference. Local dev gets it from `workers/.dev.vars`.
-- **Secrets never go in `wrangler.toml`** (it's committed to git). The IDs there — `database_id`, bucket names — are identifiers, not credentials. This public repo ships them as placeholders (`YOUR_D1_DATABASE_ID`, `you@example.com`); `account_id` is omitted entirely (Wrangler reads `CLOUDFLARE_ACCOUNT_ID` / auto-detects from login). A *real* secret (third-party API key, etc.) goes via `wrangler secret put NAME` (encrypted on CF, accessed as `env.NAME`); local dev equivalents go in `workers/.dev.vars` (gitignored). The wrangler login token lives in `~/Library/Preferences/.wrangler/config/` — never in the repo. Loft currently has zero secrets.
+- **`workers/wrangler.toml` is gitignored; `wrangler.toml.example` is the committed template.** The real file holds `database_id`, which names a specific database in a specific account, and this repo is public. Wrangler has no env-var substitution in its config (verified — `${VAR}` is passed through literally), so the id has to be a real value in a real file. **Any binding added to `wrangler.toml` must be mirrored into the example**, or a fresh clone deploys a Worker missing it. This public repo ships them as placeholders (`YOUR_D1_DATABASE_ID`, `you@example.com`); `account_id` is omitted entirely (Wrangler reads `CLOUDFLARE_ACCOUNT_ID` / auto-detects from login). A *real* secret (third-party API key, etc.) goes via `wrangler secret put NAME` (encrypted on CF, accessed as `env.NAME`); local dev equivalents go in `workers/.dev.vars` (gitignored). The wrangler login token lives in `~/Library/Preferences/.wrangler/config/` — never in the repo. Loft currently has zero secrets.
 
 ## Out of Scope (v2+)
 

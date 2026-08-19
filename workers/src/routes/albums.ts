@@ -1,6 +1,13 @@
 import { Hono } from "hono";
 import type { Env, AppVariables } from "../env";
-import { listAlbums, insertAlbum, getUsableAlbum, updateAlbum, getVisiblePhoto } from "../lib/db";
+import {
+  listAlbums,
+  insertAlbum,
+  getUsableAlbum,
+  updateAlbum,
+  deleteAlbum,
+  getVisiblePhoto,
+} from "../lib/db";
 import type { Album, AlbumPatchBody } from "@loft/shared";
 
 const r = new Hono<{ Bindings: Env; Variables: AppVariables }>();
@@ -61,6 +68,20 @@ r.patch("/:id", async (c) => {
   const album = await updateAlbum(c.env.DB, id, me.id, patch, Date.now());
   if (!album) return c.json({ error: "not_found" }, 404);
   return c.json({ album });
+});
+
+r.delete("/:id", async (c) => {
+  const me = c.get("user");
+  const id = c.req.param("id");
+
+  const existing = await getUsableAlbum(c.env.DB, id, me.id);
+  if (!existing) return c.json({ error: "not_found" }, 404);
+  // Ownership is checked here, before deleteAlbum unfiles anything.
+  if (existing.owner_id !== me.id) return c.json({ error: "not_owner" }, 403);
+
+  const ok = await deleteAlbum(c.env.DB, id, me.id, Date.now());
+  if (!ok) return c.json({ error: "not_found" }, 404);
+  return c.json({ ok: true });
 });
 
 export default r;

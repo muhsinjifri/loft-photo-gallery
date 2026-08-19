@@ -46,6 +46,13 @@ export const isShared = (a: Album): boolean => a.is_shared === 1;
 export interface PublicUser {
   id: string;
   display_name: string;
+  /**
+   * True for a resident who is configured in ALLOWED_EMAILS but has never signed
+   * in, so has no `users` row yet. Their id is still known — ids are positional
+   * — which is what lets the app offer sharing before the other person's first
+   * visit rather than hiding it until then.
+   */
+  pending?: boolean;
 }
 
 export interface Me extends PublicUser {

@@ -149,13 +149,16 @@ export function Settings() {
             </div>
           </Row>
           <Row label="Sharing with">
-            <span className="text-ink-soft">
-              {partner ? (
-                partner.display_name
-              ) : (
-                <span className="text-ink-fade">no one else yet</span>
-              )}
-            </span>
+            {partner ? (
+              <div className="flex flex-col">
+                <span className="text-ink">{partner.display_name}</span>
+                {partner.pending && (
+                  <span className="text-caption text-ink-fade">hasn't signed in yet</span>
+                )}
+              </div>
+            ) : (
+              <span className="text-ink-fade">no one else</span>
+            )}
           </Row>
           <Row label="Session">
             <button

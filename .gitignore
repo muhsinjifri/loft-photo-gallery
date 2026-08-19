@@ -12,3 +12,13 @@ build/
 .idea/
 *.tsbuildinfo
 coverage/
+
+# Real Wrangler config: holds database_id, which identifies a specific database
+# in a specific Cloudflare account. Deploys read this file, so it must exist
+# locally — copy wrangler.toml.example and fill in your ids.
+workers/wrangler.toml
+
+# Local D1 dumps — contain filenames and EXIF (incl. GPS) from a real library.
+# Never commit these; this repo is public.
+backups/
+*.sql.gz

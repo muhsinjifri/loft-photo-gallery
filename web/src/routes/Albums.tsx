@@ -3,8 +3,9 @@ import { Link } from "react-router-dom";
 import { useLiveQuery } from "dexie-react-hooks";
 import * as Dialog from "@radix-ui/react-dialog";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import * as AlertDialog from "@radix-ui/react-alert-dialog";
 import { motion } from "framer-motion";
-import { Plus, X, Users, MoreHorizontal } from "lucide-react";
+import { Plus, X, Users, MoreHorizontal, Trash2 } from "lucide-react";
 import type { Album, Photo } from "@loft/shared";
 import { db } from "../db";
 import { api, imgUrl, cacheVer } from "../api";
@@ -16,6 +17,8 @@ import { AlbumListSkeleton } from "../components/skeletons";
 interface AlbumCard {
   album: Album;
   count: number;
+  /** How many of the pictures in here belong to the other person. */
+  theirs: number;
   cover?: string;
   coverVer?: number | null;
 }
@@ -51,12 +54,15 @@ export function Albums() {
       return {
         album,
         count: ps.length,
+        theirs: ps.filter((p) => p.owner_id !== me?.id).length,
         cover: ps[0]?.id,
         coverVer: ps[0] ? (cacheVer(ps[0]) ?? null) : null,
       };
     });
-  }, []);
+    // `theirs` reads me.id, so the query must re-run when identity resolves.
+  }, [me?.id]);
 
+  const [confirmDelete, setConfirmDelete] = useState<AlbumCard | null>(null);
 
   async function create() {
     if (!name.trim()) return;
@@ -70,6 +76,15 @@ export function Albums() {
     } finally {
       setCreating(false);
     }
+  }
+
+  async function reallyDelete(card: AlbumCard) {
+    await api.deleteAlbum(card.album.id);
+    await db.albums.delete(card.album.id);
+    setConfirmDelete(null);
+    // The photos are unfiled rather than deleted, so pull their new album_id
+    // down now instead of leaving the grid wrong for up to a minute.
+    await syncFromServer().catch(console.error);
   }
 
   async function toggleShare(album: Album) {
@@ -167,7 +182,7 @@ export function Albums() {
 
                 {/* Only the owner controls sharing — you can add your photos to
                     the other person's shared album, but you can't re-share it. */}
-                {mine && partner && (
+                {mine && (
                   <DropdownMenu.Root>
                     <DropdownMenu.Trigger asChild>
                       <button
@@ -185,14 +200,24 @@ export function Albums() {
                         sideOffset={4}
                         className="z-[120] paper-card !p-1 min-w-[200px]"
                       >
+                        {partner && (
                         <DropdownMenu.Item
                           onSelect={() => void toggleShare(a)}
-                          className="flex items-center gap-2 px-2.5 py-1.5 rounded text-[13.5px] text-ink-soft outline-none cursor-pointer data-[highlighted]:bg-accent/10"
+                          className="flex items-center gap-2 px-2.5 py-1.5 rounded text-[13.5px] text-ink outline-none cursor-pointer data-[highlighted]:bg-accent/10"
                         >
                           <Users className="w-3.5 h-3.5" />
                           {a.is_shared === 1
                             ? "Stop sharing"
-                            : `Share with ${partner.display_name}`}
+                            : `Share with ${partner?.display_name ?? "them"}`}
+                        </DropdownMenu.Item>
+                        )}
+                        {partner && <DropdownMenu.Separator className="h-px my-1 bg-line" />}
+                        <DropdownMenu.Item
+                          onSelect={() => setConfirmDelete(cards!.find((x) => x.album.id === a.id)!)}
+                          className="flex items-center gap-2 px-2.5 py-1.5 rounded text-[13.5px] text-red-500 outline-none cursor-pointer data-[highlighted]:bg-red-500/10"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          Delete album
                         </DropdownMenu.Item>
                       </DropdownMenu.Content>
                     </DropdownMenu.Portal>
@@ -203,6 +228,46 @@ export function Albums() {
           })}
         </div>
       )}
+
+      <AlertDialog.Root open={!!confirmDelete} onOpenChange={(v) => !v && setConfirmDelete(null)}>
+        <AlertDialog.Portal>
+          <AlertDialog.Overlay className="fixed inset-0 z-[160] bg-black/40 animate-fadeIn" />
+          <AlertDialog.Content
+            className="fixed z-[161] left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 paper-card w-[min(400px,calc(100vw-32px))]"
+            style={{ animation: "liftIn .26s cubic-bezier(.32,.72,0,1)" }}
+          >
+            <AlertDialog.Title className="font-display text-title3 font-semibold text-ink m-0">
+              Delete “{confirmDelete?.album.name}”?
+            </AlertDialog.Title>
+            <AlertDialog.Description className="text-footnote text-ink-fade mt-1 mb-4">
+              {confirmDelete?.count
+                ? `The ${confirmDelete.count} ${confirmDelete.count === 1 ? "picture" : "pictures"} in it stay in your library — they just won't be in an album any more.`
+                : "This album is empty."}
+              {!!confirmDelete?.theirs && partner && (
+                <>
+                  {" "}
+                  {confirmDelete.theirs} of them{" "}
+                  {confirmDelete.theirs === 1 ? "is" : "are"} {partner.display_name}'s and will be
+                  removed from this album too. Nothing of theirs is deleted.
+                </>
+              )}
+            </AlertDialog.Description>
+            <div className="flex items-center justify-end gap-2">
+              <AlertDialog.Cancel asChild>
+                <button type="button" className="btn">Cancel</button>
+              </AlertDialog.Cancel>
+              <button
+                type="button"
+                className="btn"
+                style={{ background: "rgb(255 59 48)", borderColor: "transparent", color: "#fff" }}
+                onClick={() => confirmDelete && void reallyDelete(confirmDelete)}
+              >
+                Delete album
+              </button>
+            </div>
+          </AlertDialog.Content>
+        </AlertDialog.Portal>
+      </AlertDialog.Root>
 
       <Dialog.Root open={newOpen} onOpenChange={setNewOpen}>
         <Dialog.Portal>

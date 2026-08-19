@@ -1,3 +1,16 @@
+# TEMPLATE — copy to `wrangler.toml` and fill in your own ids:
+#
+#     cp workers/wrangler.toml.example workers/wrangler.toml
+#     wrangler d1 create loft-db     # or: wrangler d1 list
+#     # paste the uuid into database_id below
+#
+# The real `wrangler.toml` is gitignored because `database_id` identifies a
+# specific database in a specific account, and this repo is public.
+#
+# KEEP THIS FILE IN STEP: bindings live in wrangler.toml, which git no longer
+# sees, so any binding you add there must be mirrored here or a fresh clone
+# deploys a Worker missing it.
+
 name = "loft-api"
 main = "src/index.ts"
 compatibility_date = "2024-11-27"

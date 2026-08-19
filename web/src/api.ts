@@ -126,6 +126,8 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, is_shared }),
     }),
+  /** Deletes the album only — the pictures in it are unfiled, never deleted. */
+  deleteAlbum: (id: string) => jsonFetch<{ ok: true }>(`/api/albums/${id}`, { method: "DELETE" }),
   updateAlbum: (id: string, patch: { name?: string; is_shared?: boolean; cover_photo_id?: string | null }) =>
     jsonFetch<{ album: Album }>(`/api/albums/${id}`, {
       method: "PATCH",
