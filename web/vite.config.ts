@@ -12,8 +12,12 @@ export default defineConfig({
         name: "Loft",
         short_name: "Loft",
         description: "Personal photo & video loft",
-        theme_color: "#F4EFE6",
-        background_color: "#F4EFE6",
+        // The installed app's splash and task-switcher colour. The in-page
+        // <meta name="theme-color"> is media-query aware and overrides this at
+        // runtime; the manifest value is the static fallback, so it uses the
+        // light room to match the default system appearance on most phones.
+        theme_color: "#F2F2F7",
+        background_color: "#F2F2F7",
         display: "standalone",
         start_url: "/",
         icons: [

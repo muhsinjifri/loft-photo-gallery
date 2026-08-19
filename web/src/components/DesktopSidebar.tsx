@@ -94,7 +94,6 @@ export function DesktopSidebar() {
         <h1 className="font-display text-[21px] font-semibold leading-none text-ink m-0 -tracking-[0.02em]">
           Loft
         </h1>
-        <span className="block mt-1 text-[12px] text-ink-fade">a quiet place for pictures</span>
       </div>
 
       {/* Pinned destinations */}

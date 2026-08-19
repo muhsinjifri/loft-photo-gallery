@@ -159,7 +159,8 @@ Constants in `shared/src/types.ts`: `THUMB_PX=512`, `PREVIEW_PX=2048`, `JPEG_QUA
 3. `wrangler d1 create loft-db` → paste `database_id` into `workers/wrangler.toml`
 4. `npm run db:migrate:remote` (applies all migrations to prod D1)
 5. `npm run deploy` (builds `web/dist`, then `wrangler deploy` ships the Worker **with** the static assets)
-6. CF Zero Trust → Access app → wrap the single Worker domain (`loft-api.<your-subdomain>.workers.dev`), policy: **both** addresses from `ALLOWED_EMAILS`. This is a second, independent gate — until it lists the partner, they never reach the Worker at all. No Pages project exists.
+6. `wrangler secret put ALLOWED_EMAILS` → paste `you@example.com,partner@example.com` (your own address FIRST — see below). It is a **secret**, not a `[vars]` entry, because this repo is public. It must also be a secret rather than a dashboard *Variable*: `wrangler deploy` replaces the plaintext vars bag with whatever is in `wrangler.toml`, so a dashboard-edited variable is wiped on the next deploy — secrets survive.
+7. CF Zero Trust → Access app → wrap the single Worker domain (`loft-api.<your-subdomain>.workers.dev`), policy: **both** addresses. This is a second, independent gate — until it lists the partner, they never reach the Worker at all. No Pages project exists.
 
 ## Known Gotchas
 
@@ -181,7 +182,8 @@ Constants in `shared/src/types.ts`: `THUMB_PX=512`, `PREVIEW_PX=2048`, `JPEG_QUA
 - **The token names (`paper`, `ink`) predate the current design** and are kept because the scale still runs the same direction in both themes; renaming would churn forty files for nothing. `paper-canvas` is the library surface and inverts between themes (white in light, black in dark) the way a macOS split view does.
 - **The Viewer is deliberately dark in both themes.** A photograph is judged against black, and Photos does not lighten its lightbox in light mode, so the viewer chrome uses fixed white-on-black rather than tokens.
 - **Theme is applied by an inline script in `index.html` before first paint.** Without it a dark install flashes the light room for a frame while React boots.
-- **Secrets never go in `wrangler.toml`** (it's committed to git). The IDs there — `database_id`, bucket names, `ALLOWED_EMAILS` — are identifiers, not credentials. This public repo ships them as placeholders (`YOUR_D1_DATABASE_ID`, `you@example.com`); `account_id` is omitted entirely (Wrangler reads `CLOUDFLARE_ACCOUNT_ID` / auto-detects from login). A *real* secret (third-party API key, etc.) goes via `wrangler secret put NAME` (encrypted on CF, accessed as `env.NAME`); local dev equivalents go in `workers/.dev.vars` (gitignored). The wrangler login token lives in `~/Library/Preferences/.wrangler/config/` — never in the repo. Loft currently has zero secrets.
+- **`ALLOWED_EMAILS` is an encrypted secret, not a `[vars]` entry.** The repo is public and the value is two real personal addresses. A dashboard *Variable* would not survive — `wrangler deploy` overwrites the plaintext vars bag from `wrangler.toml` — so it has to be `wrangler secret put`. `env.ALLOWED_EMAILS` reads identically either way, so there is no code difference. Local dev gets it from `workers/.dev.vars`.
+- **Secrets never go in `wrangler.toml`** (it's committed to git). The IDs there — `database_id`, bucket names — are identifiers, not credentials. This public repo ships them as placeholders (`YOUR_D1_DATABASE_ID`, `you@example.com`); `account_id` is omitted entirely (Wrangler reads `CLOUDFLARE_ACCOUNT_ID` / auto-detects from login). A *real* secret (third-party API key, etc.) goes via `wrangler secret put NAME` (encrypted on CF, accessed as `env.NAME`); local dev equivalents go in `workers/.dev.vars` (gitignored). The wrangler login token lives in `~/Library/Preferences/.wrangler/config/` — never in the repo. Loft currently has zero secrets.
 
 ## Out of Scope (v2+)
 

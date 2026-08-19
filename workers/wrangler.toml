@@ -9,15 +9,27 @@ compatibility_flags = ["nodejs_compat"]
 
 [vars]
 ENV = "prod"
-# Comma-separated list of emails allowed past Cloudflare Access.
+
+# NOTE: ALLOWED_EMAILS is deliberately NOT here.
+#
+# It is set as an encrypted secret instead, because this file is committed to a
+# public repo and the list contains real personal addresses:
+#
+#     wrangler secret put ALLOWED_EMAILS
+#     # then paste:  you@example.com,partner@example.com
+#
+# It must be a *secret*, not a dashboard "Variable": `wrangler deploy` replaces
+# the plaintext vars bag with whatever is in this file, so a variable edited in
+# the dashboard is wiped on the next deploy. Secrets survive deploys.
 #
 # ORDER IS LOAD-BEARING ON FIRST DEPLOY: the first email becomes user "u1", who
 # migration 0003 assigns every pre-existing photo and album to. Put your own
-# address first. After both users have logged in once, order no longer matters.
+# address first. Once both people have logged in, order stops mattering.
 #
-# The Cloudflare Access policy is a separate, independent gate — it must list
-# both addresses too, or the second person never reaches the Worker at all.
-ALLOWED_EMAILS = "you@example.com,partner@example.com"
+# The Cloudflare Access policy is a separate, independent gate and must list both
+# addresses too, or the second person never reaches the Worker at all.
+#
+# For local dev, `workers/.dev.vars` (gitignored) supplies it instead.
 
 [assets]
 directory = "../web/dist"
