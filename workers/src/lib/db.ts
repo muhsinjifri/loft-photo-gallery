@@ -1,4 +1,5 @@
 import type { Photo, Album, Scope } from "@loft/shared";
+import { yearMonthFromTs } from "./media";
 
 /**
  * Must match the expression in idx_photos_*_sort character for character, or the
@@ -75,16 +76,41 @@ export async function updatePhotoThumbMeta(
   db: D1Database,
   id: string,
   ownerId: string,
-  m: { width: number | null; height: number | null; duration_ms: number | null; updated_at: number },
+  m: {
+    width: number | null;
+    height: number | null;
+    duration_ms: number | null;
+    updated_at: number;
+    /** EXIF date found by the client. Only fills a missing taken_at — never overrides one. */
+    taken_at?: number | null;
+    exif_json?: string | null;
+  },
 ): Promise<boolean> {
+  const takenAt = m.taken_at ?? null;
   const res = await db
     // The only place the R2 blobs are rewritten, so the only place
-    // media_updated_at moves.
+    // media_updated_at moves. On the right-hand side SQLite reads the OLD row,
+    // so `taken_at IS NULL` means "had no date until now".
     .prepare(
-      `UPDATE photos SET width = ?, height = ?, duration_ms = ?, updated_at = ?, media_updated_at = ?
+      `UPDATE photos SET width = ?, height = ?, duration_ms = ?, updated_at = ?, media_updated_at = ?,
+         year_month = CASE WHEN taken_at IS NULL AND ? IS NOT NULL THEN ? ELSE year_month END,
+         taken_at = COALESCE(taken_at, ?),
+         exif_json = COALESCE(exif_json, ?)
        WHERE id = ? AND owner_id = ?`,
     )
-    .bind(m.width, m.height, m.duration_ms, m.updated_at, m.updated_at, id, ownerId)
+    .bind(
+      m.width,
+      m.height,
+      m.duration_ms,
+      m.updated_at,
+      m.updated_at,
+      takenAt,
+      yearMonthFromTs(takenAt),
+      takenAt,
+      m.exif_json ?? null,
+      id,
+      ownerId,
+    )
     .run();
   return (res.meta?.changes ?? 0) > 0;
 }

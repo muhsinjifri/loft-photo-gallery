@@ -27,6 +27,10 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,svg}"],
+        // These are server routes. Without the denylist the service worker
+        // answers a navigation to /login with the cached app shell, so the
+        // Cloudflare Access sign-in would never run.
+        navigateFallbackDenylist: [/^\/login/, /^\/logout/, /^\/api\//, /^\/img\//, /^\/cdn-cgi\//],
         runtimeCaching: [
           {
             urlPattern: /\/img\/thumb\//,

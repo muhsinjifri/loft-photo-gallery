@@ -116,10 +116,10 @@ r.patch("/:id", async (c) => {
   return c.json({ ok: true });
 });
 
-// Replace a photo's thumbnail + preview (used by the desktop backfill to give
-// real frames to videos that were stored with a placeholder). Overwrites the
-// existing R2 blobs; the client busts caches by versioning the URL with the
-// new updated_at. Bumps updated_at so other devices pick it up via sync.
+// Replace a photo's thumbnail + preview (used by the client backfill to give
+// real frames to videos and Shortcut-pushed pictures stored with a placeholder).
+// Overwrites the existing R2 blobs; the client busts caches by versioning the URL
+// with media_updated_at. Bumps updated_at so other devices pick it up via sync.
 //
 // Owner-only: it writes to photo.thumb_key / photo.preview_key, so unscoped
 // either user could clobber the other's derivatives.
@@ -142,18 +142,30 @@ r.post("/:id/thumbnail", async (c) => {
     return c.json({ error: "missing_files", detail: "thumb and preview required" }, 400);
   }
 
-  let dims: { width: number | null; height: number | null; duration_ms: number | null } = {
-    width: null,
-    height: null,
-    duration_ms: null,
-  };
+  let dims: {
+    width: number | null;
+    height: number | null;
+    duration_ms: number | null;
+    taken_at: number | null;
+    exif_json: string | null;
+  } = { width: null, height: null, duration_ms: null, taken_at: null, exif_json: null };
   if (typeof metaRaw === "string") {
     try {
-      const m = JSON.parse(metaRaw) as Partial<typeof dims>;
+      const m = JSON.parse(metaRaw) as {
+        width?: number | null;
+        height?: number | null;
+        duration_ms?: number | null;
+        taken_at?: number | null;
+        exif?: Record<string, unknown> | null;
+      };
       dims = {
         width: m.width ?? null,
         height: m.height ?? null,
         duration_ms: m.duration_ms ?? null,
+        // Pictures pushed from a Shortcut arrive undated; the backfill reads the
+        // EXIF date client-side and hands it over here.
+        taken_at: typeof m.taken_at === "number" && Number.isFinite(m.taken_at) ? m.taken_at : null,
+        exif_json: m.exif ? JSON.stringify(m.exif) : null,
       };
     } catch {
       return c.json({ error: "invalid_metadata_json" }, 400);

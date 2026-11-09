@@ -57,7 +57,9 @@ async function jsonFetch<T>(path: string, init?: RequestInit): Promise<T> {
     // After ...init so a caller's headers merge rather than being clobbered.
     headers: { ...devHeaders(), ...((init?.headers as Record<string, string>) ?? {}) },
   });
-  if (r.status === 401 || r.status === 403) {
+  // 401 only: 403 means "you can see it but may not do that" (e.g. deleting the
+  // partner's photo), which is not a reason to leave the app.
+  if (r.status === 401) {
     onUnauthorized?.();
     throw new ApiError(r.status, `${r.status} ${r.statusText}`);
   }
@@ -111,7 +113,14 @@ export const api = {
     id: string,
     thumb: Blob,
     preview: Blob,
-    meta: { width: number | null; height: number | null; duration_ms: number | null },
+    meta: {
+      width: number | null;
+      height: number | null;
+      duration_ms: number | null;
+      /** Fills a missing date only (Shortcut pushes arrive undated). */
+      taken_at?: number | null;
+      exif?: Record<string, unknown> | null;
+    },
   ) => {
     const fd = new FormData();
     fd.append("thumb", thumb, "thumb.jpg");
@@ -119,6 +128,12 @@ export const api = {
     fd.append("metadata", JSON.stringify(meta));
     return jsonFetch<{ photo: Photo }>(`/api/photos/${id}/thumbnail`, { method: "POST", body: fd });
   },
+  uploadKey: () =>
+    jsonFetch<{ exists: boolean; created_at: number | null; last_used_at: number | null }>(`/api/upload-key`),
+  /** Replaces any existing key. The returned token is shown once and never retrievable again. */
+  createUploadKey: () => jsonFetch<{ token: string }>(`/api/upload-key`, { method: "POST" }),
+  revokeUploadKey: () => jsonFetch<{ ok: true }>(`/api/upload-key`, { method: "DELETE" }),
+  logout: () => fetch(`${BASE}/logout`, { method: "POST", credentials: "include", cache: "no-store" }),
   listAlbums: () => jsonFetch<{ albums: Album[] }>(`/api/albums`),
   createAlbum: (name: string, is_shared = false) =>
     jsonFetch<{ album: Album }>(`/api/albums`, {
@@ -163,7 +178,7 @@ export const api = {
             reject(e instanceof Error ? e : new Error(String(e)));
           }
         } else {
-          if (xhr.status === 401 || xhr.status === 403) onUnauthorized?.();
+          if (xhr.status === 401) onUnauthorized?.();
           reject(new ApiError(xhr.status, `${xhr.status} ${xhr.statusText || "upload failed"}`));
         }
       };

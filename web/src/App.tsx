@@ -11,7 +11,7 @@ import { Settings } from "./routes/Settings";
 import { NotAuthorized } from "./routes/NotAuthorized";
 import { UserProvider, RequireUser, useUser } from "./user";
 import { syncFromServer, fullResync } from "./sync";
-import { autoBackfill } from "./backfill";
+import { autoBackfill, backfillImageThumbnails } from "./backfill";
 
 /**
  * Drives sync. Lives here rather than in App so it mounts only once an identity
@@ -26,7 +26,15 @@ function SyncRunner() {
     fullResync()
       .then(() => autoBackfill())
       .catch(console.error);
-    const t = setInterval(() => syncFromServer().catch(console.error), 60_000);
+    // Pictures pushed from a Shortcut while the app is open get their real
+    // thumbnails on the next poll rather than waiting for a relaunch.
+    const t = setInterval(
+      () =>
+        syncFromServer()
+          .then(() => backfillImageThumbnails({ limit: 40 }))
+          .catch(console.error),
+      60_000,
+    );
     return () => clearInterval(t);
   }, [me?.id]);
   return null;

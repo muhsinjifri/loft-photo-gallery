@@ -8,8 +8,8 @@ export function NotAuthorized() {
         title="this loft is private"
         sub="you're not the resident — sign in with the right account to come in."
         action={
-          <a href="/" className="btn btn-primary inline-flex items-center">
-            Try again
+          <a href="/login" className="btn btn-primary inline-flex items-center">
+            Sign in
           </a>
         }
       />

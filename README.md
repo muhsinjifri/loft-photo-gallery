@@ -130,7 +130,8 @@ npm run deploy
 
 Then, in the Cloudflare dashboard:
 
-7. **Zero Trust → Access → Applications** → add a self-hosted app wrapping your Worker domain (`loft-api.<your-subdomain>.workers.dev`), with a policy allowing exactly the emails in `ALLOWED_EMAILS`. This is what makes the loft private, and it is a separate gate from the Worker's own check — if it doesn't list your partner, they never get in.
+7. **Zero Trust → Access → Applications** → add a self-hosted app on your Worker domain (`loft-api.<your-subdomain>.workers.dev`) with **path `login`** only, and a policy allowing exactly the emails in `ALLOWED_EMAILS`. Copy its **AUD tag**, then set the Worker secrets `SESSION_SECRET` (long random string), `ACCESS_TEAM_DOMAIN` (your team name) and `ACCESS_AUD`. Access checks your email once at `/login`; Loft then keeps you signed in with its own year-long cookie that renews whenever you use the app — no more monthly re-login.
+8. Optional: push photos from your iPhone with an Apple Shortcut — see [docs/APPLE_SHORTCUT.md](docs/APPLE_SHORTCUT.md).
 
 ### Notes on configuration
 

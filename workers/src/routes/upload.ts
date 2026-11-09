@@ -4,27 +4,9 @@ import type { UploadMetadata, Photo } from "@loft/shared";
 import { MAX_UPLOAD_BYTES } from "@loft/shared";
 import { putBlob } from "../lib/r2";
 import { insertPhoto } from "../lib/db";
+import { extFromMime, yearMonthFromTs } from "../lib/media";
 
 const r = new Hono<{ Bindings: Env; Variables: AppVariables }>();
-
-function uuid(): string {
-  return crypto.randomUUID();
-}
-
-function extFromMime(mime: string, filename: string): string {
-  const dot = filename.lastIndexOf(".");
-  if (dot >= 0) return filename.slice(dot + 1).toLowerCase();
-  if (mime.startsWith("image/")) return mime.slice(6);
-  if (mime.startsWith("video/")) return mime.slice(6);
-  return "bin";
-}
-
-function yearMonthFromTs(ms: number | null): string | null {
-  if (!ms) return null;
-  const d = new Date(ms);
-  if (Number.isNaN(d.getTime())) return null;
-  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
-}
 
 r.post("/", async (c) => {
   const form = await c.req.formData();
@@ -54,7 +36,7 @@ r.post("/", async (c) => {
   }
 
   const me = c.get("user");
-  const id = uuid();
+  const id = crypto.randomUUID();
   const ext = extFromMime(meta.mime, meta.filename);
   // Owner-prefixed so the bucket is legible per person and per-user lifecycle
   // rules stay possible. Pre-0003 objects keep their flat keys and keep working:

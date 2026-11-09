@@ -43,6 +43,13 @@ ENV = "prod"
 # addresses too, or the second person never reaches the Worker at all.
 #
 # For local dev, `workers/.dev.vars` (gitignored) supplies it instead.
+#
+# Also required in prod (also `wrangler secret put`), or every request is a 500:
+#   SESSION_SECRET      long random string — signs Loft's own year-long login
+#                       cookie. Rotating it signs everyone out.
+#   ACCESS_TEAM_DOMAIN  your Zero Trust team, e.g. "myteam"
+#   ACCESS_AUD          the Access application's AUD tag
+# The Access application should cover ONLY the path /login.
 
 [assets]
 directory = "../web/dist"

@@ -1,10 +1,10 @@
 import { db, getMeta, setMeta, CURRENT_USER_KEY } from "./db";
 import { api, imgUrl } from "./api";
-import { generateVideoThumbnails } from "./thumb";
+import { generateVideoThumbnails, prepareUpload } from "./thumb";
 
 const SKIP_KEY_BASE = "backfill_skip";
 
-/** Namespaced per identity — the skip list is about this person's videos. */
+/** Namespaced per identity — the skip list is about this person's own items. */
 export async function skipKey(): Promise<string> {
   return `${SKIP_KEY_BASE}:${(await getMeta(CURRENT_USER_KEY)) ?? "unknown"}`;
 }
@@ -40,22 +40,80 @@ async function saveSkip(skip: Set<string>): Promise<void> {
 }
 
 /**
- * Videos I OWN that still show a placeholder thumbnail (no real decoded
- * dimensions). Scoped to the owner because this feeds api.replaceThumbnail,
- * which is owner-only — unscoped it would 403 on every one of the partner's
- * videos, once per run.
+ * Things I OWN still showing a placeholder thumbnail — unknown dimensions is the
+ * marker. That covers videos whose frame couldn't be decoded at upload, and
+ * anything pushed in from an Apple Shortcut (which can't make thumbnails at all).
+ * Scoped to the owner because this feeds api.replaceThumbnail, which is
+ * owner-only — unscoped it would 403 on every one of the partner's items.
  */
-async function findPlaceholderVideos() {
+async function findPlaceholders(kind: "video" | "image") {
   const meId = await getMeta(CURRENT_USER_KEY);
   if (!meId) return [];
   const mine = await db.photos.where("owner_id").equals(meId).toArray();
   return mine.filter(
-    (p) => !p.deleted_at && p.mime.startsWith("video/") && (!p.width || !p.height),
+    (p) => !p.deleted_at && p.mime.startsWith(`${kind}/`) && (!p.width || !p.height),
   );
 }
 
 export async function countPlaceholderVideos(): Promise<number> {
-  return (await findPlaceholderVideos()).length;
+  return (await findPlaceholders("video")).length;
+}
+
+async function fetchOriginal(p: { id: string; mime: string; filename: string }): Promise<File> {
+  const resp = await fetch(imgUrl.orig(p.id), { credentials: "include" });
+  if (!resp.ok) throw new Error(`fetch original ${resp.status}`);
+  return new File([await resp.blob()], p.filename, { type: p.mime });
+}
+
+/**
+ * Make real thumbnails for pictures pushed from a Shortcut, and pick up their
+ * EXIF date so they move to the right month. Same resize path as a normal
+ * upload. HEIC only decodes in Safari, so elsewhere those are recorded as skips
+ * and left for the phone.
+ */
+export async function backfillImageThumbnails(opts?: { limit?: number }): Promise<BackfillResult> {
+  if (running) return { fixed: 0, failed: 0, total: 0 };
+  running = true;
+  try {
+    const skip = await loadSkip();
+    const candidates = (await findPlaceholders("image")).filter((p) => !skip.has(p.id));
+    const work = candidates.slice(0, opts?.limit ?? candidates.length);
+    let fixed = 0;
+    let failed = 0;
+    for (const p of work) {
+      let file: File;
+      try {
+        file = await fetchOriginal(p);
+      } catch (e) {
+        // Network trouble — not this browser's fault, so try again next time.
+        console.warn(`[backfill] couldn't fetch "${p.filename}"`, e);
+        failed++;
+        continue;
+      }
+      try {
+        const prepared = await prepareUpload(file);
+        const { photo } = await api.replaceThumbnail(p.id, prepared.thumb, prepared.preview, {
+          width: prepared.meta.width,
+          height: prepared.meta.height,
+          duration_ms: null,
+          taken_at: prepared.meta.taken_at,
+          exif: prepared.meta.exif,
+        });
+        await db.photos.put(photo);
+        skip.delete(p.id);
+        fixed++;
+      } catch (e) {
+        // Couldn't decode here (HEIC outside Safari) — don't re-download it every run.
+        console.warn(`[backfill] couldn't make a thumbnail for "${p.filename}" here`, e);
+        skip.add(p.id);
+        failed++;
+      }
+    }
+    await saveSkip(skip);
+    return { fixed, failed, total: work.length };
+  } finally {
+    running = false;
+  }
 }
 
 /**
@@ -74,7 +132,7 @@ export async function backfillVideoThumbnails(opts?: {
   running = true;
   try {
     const skip = await loadSkip();
-    let candidates = await findPlaceholderVideos();
+    let candidates = await findPlaceholders("video");
     if (!opts?.ignoreSkip) candidates = candidates.filter((p) => !skip.has(p.id));
     const work = candidates.slice(0, opts?.limit ?? candidates.length);
 
@@ -84,9 +142,7 @@ export async function backfillVideoThumbnails(opts?: {
       const p = work[i];
       opts?.onProgress?.({ done: i, total: work.length, current: p.filename, fixed, failed });
       try {
-        const resp = await fetch(imgUrl.orig(p.id), { credentials: "include" });
-        if (!resp.ok) throw new Error(`fetch original ${resp.status}`);
-        const blob = new Blob([await resp.blob()], { type: p.mime });
+        const blob = await fetchOriginal(p);
         const r = await generateVideoThumbnails(blob, p.filename);
         if (!r.real) {
           // This browser couldn't decode it either — remember so we don't
@@ -121,8 +177,21 @@ function looksLikeDesktop(): boolean {
   return typeof navigator !== "undefined" && (navigator.maxTouchPoints ?? 0) === 0;
 }
 
-/** Fire-and-forget auto-backfill, capped, only on capable desktop browsers. */
+/**
+ * Fire-and-forget auto-backfill. Shortcut-pushed pictures are done on any device
+ * (the phone is usually the one that can decode HEIC); videos only on capable
+ * desktop browsers. Each is capped so a big batch doesn't hog one session.
+ */
 export function autoBackfill(): void {
+  void backfillImageThumbnails({ limit: 40 })
+    .then((r) => {
+      if (r.fixed) console.info(`[backfill] made ${r.fixed} thumbnail(s) for pushed pictures`);
+    })
+    .catch(console.error)
+    .finally(autoBackfillVideos);
+}
+
+function autoBackfillVideos(): void {
   if (!looksLikeDesktop()) return;
   if (typeof VideoDecoder === "undefined" && typeof document.createElement("video").canPlayType !== "function")
     return;

@@ -4,6 +4,12 @@ export interface Env {
   ALLOWED_EMAILS: string;
   /** @deprecated pre-0003 single-user config; read as a fallback so a stale deploy still boots. */
   ALLOWED_EMAIL?: string;
+  /** HMAC key for Loft's own year-long sign-in cookie. Secret. Rotating it signs everyone out. */
+  SESSION_SECRET?: string;
+  /** Zero Trust team, e.g. "myteam" or "myteam.cloudflareaccess.com". Used to verify Access JWTs. */
+  ACCESS_TEAM_DOMAIN?: string;
+  /** The Access application's AUD tag (Zero Trust → Access → Applications → the app → Overview). */
+  ACCESS_AUD?: string;
   BUCKET: R2Bucket;
   DB: D1Database;
   ASSETS: Fetcher;

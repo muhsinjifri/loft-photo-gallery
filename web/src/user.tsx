@@ -31,6 +31,38 @@ interface UserCtx {
 
 const Ctx = createContext<UserCtx | null>(null);
 
+const LOGIN_ATTEMPT_KEY = "loft_login_attempt";
+
+/**
+ * Signed out (or the year-long cookie lapsed): go through the door at /login,
+ * which Cloudflare Access guards, and come back to where you were.
+ *
+ * A full navigation, not a router push — /login is a server route. Guarded
+ * against looping: if we were just sent there and still came back unauthorized
+ * (cookies blocked, Access misconfigured), stop at the "private" page instead of
+ * bouncing forever.
+ */
+function goToLogin(navigate: ReturnType<typeof useNavigate>): void {
+  if (import.meta.env.DEV) {
+    navigate("/not-authorized", { replace: true });
+    return;
+  }
+  let recent = false;
+  try {
+    const last = Number(sessionStorage.getItem(LOGIN_ATTEMPT_KEY) ?? 0);
+    recent = Date.now() - last < 30_000;
+    sessionStorage.setItem(LOGIN_ATTEMPT_KEY, String(Date.now()));
+  } catch {
+    /* storage blocked — no guard, but still try once */
+  }
+  if (recent || location.pathname === "/not-authorized") {
+    navigate("/not-authorized", { replace: true });
+    return;
+  }
+  const next = location.pathname + location.search;
+  location.replace(`/login?next=${encodeURIComponent(next)}`);
+}
+
 export function UserProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const [me, setMe] = useState<Me | null>(null);
@@ -43,7 +75,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setUnauthorizedHandler(() => {
       setStatus("unauthorized");
-      navigate("/not-authorized", { replace: true });
+      goToLogin(navigate);
     });
     return () => setUnauthorizedHandler(null);
   }, [navigate]);
@@ -89,6 +121,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
           return;
         }
 
+        try {
+          sessionStorage.removeItem(LOGIN_ATTEMPT_KEY);
+        } catch {
+          /* ignore */
+        }
         await setMeta(IDENTITY_KEY, JSON.stringify(fresh));
         await setMeta(CURRENT_USER_KEY, fresh.me.id);
         if (cancelled) return;
@@ -102,7 +139,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
           await db.meta.delete(IDENTITY_KEY);
           await db.meta.delete(CURRENT_USER_KEY);
           setStatus("unauthorized");
-          navigate("/not-authorized", { replace: true });
+          goToLogin(navigate);
           return;
         }
         // Network failure: stay up on the cached identity if we have one.

@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { RefreshCw, Download as DownloadIcon, Trash2, Film, LogOut } from "lucide-react";
+import { RefreshCw, Download as DownloadIcon, Trash2, Film, LogOut, KeyRound, Copy, Check } from "lucide-react";
 import { db, LAST_SYNC_KEY } from "../db";
 import { syncFromServer, clearImageCaches, wipeLocalIdentityData } from "../sync";
 import { backfillVideoThumbnails, countPlaceholderVideos, skipKey } from "../backfill";
-import { getDevUser, setDevUser } from "../api";
+import { api, getDevUser, setDevUser } from "../api";
 import { loadSharedAlbumIds } from "../filter";
 import { useUser } from "../user";
 import { useTheme, type ThemePref } from "../theme";
@@ -105,10 +105,12 @@ export function Settings() {
     location.reload();
   }
 
-  function signOut() {
-    // Cloudflare Access logout: clears the Access session cookie, then bounces
-    // back to the login screen. (In dev, Access is bypassed so this 404s — that's fine.)
-    window.location.href = "/cdn-cgi/access/logout";
+  async function signOut() {
+    if (!confirm("Sign out of Loft on this device?")) return;
+    // Drop Loft's year-long cookie, then end the Cloudflare Access session too,
+    // so the next visit asks for the email code again. (In dev neither exists.)
+    await api.logout().catch(() => undefined);
+    window.location.href = import.meta.env.DEV ? "/" : "/cdn-cgi/access/logout";
   }
 
   async function doInstall() {
@@ -170,6 +172,8 @@ export function Settings() {
             </button>
           </Row>
         </Section>
+
+        <ShortcutSection />
 
         <Section title="Appearance">
           <Row label="Theme">
@@ -298,6 +302,130 @@ export function Settings() {
         </Section>
       </div>
     </>
+  );
+}
+
+/**
+ * The personal key an Apple Shortcut uses to push pictures in (POST /api/push).
+ * Shown exactly once, when made; the server only keeps a hash of it.
+ */
+function ShortcutSection() {
+  const [status, setStatus] = useState<{ exists: boolean; created_at: number | null; last_used_at: number | null } | null>(
+    null,
+  );
+  const [token, setToken] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState<"key" | "url" | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const endpoint = `${location.origin}/api/push`;
+
+  useEffect(() => {
+    api
+      .uploadKey()
+      .then(setStatus)
+      .catch(() => setError("can't reach Loft right now."));
+  }, []);
+
+  async function make() {
+    if (status?.exists && !confirm("Make a new key? The Shortcut using the old one will stop working until you paste the new one in.")) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const { token } = await api.createUploadKey();
+      setToken(token);
+      setStatus({ exists: true, created_at: Date.now(), last_used_at: null });
+    } catch {
+      setError("couldn't make a key — try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function revoke() {
+    if (!confirm("Turn off Shortcut uploads? The key stops working right away.")) return;
+    setBusy(true);
+    try {
+      await api.revokeUploadKey();
+      setToken(null);
+      setStatus({ exists: false, created_at: null, last_used_at: null });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function copy(what: "key" | "url", text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(what);
+      setTimeout(() => setCopied(null), 1500);
+    } catch {
+      /* select-and-copy by hand still works on the field */
+    }
+  }
+
+  const when = (ms: number | null) => (ms ? new Date(ms).toLocaleDateString() : "never");
+
+  return (
+    <Section title="Apple Shortcut">
+      <Row label="Upload key">
+        <div className="flex flex-col items-end gap-1.5">
+          <div className="flex items-center gap-2">
+            {status?.exists && (
+              <button type="button" className="btn" onClick={revoke} disabled={busy}>
+                Turn off
+              </button>
+            )}
+            <button
+              type="button"
+              className="btn btn-primary inline-flex items-center gap-1.5"
+              onClick={make}
+              disabled={busy || !status}
+            >
+              <KeyRound className="w-4 h-4" /> {status?.exists ? "New key" : "Make key"}
+            </button>
+          </div>
+          <span className="text-footnote text-ink-fade">
+            {error ??
+              (status === null
+                ? "checking…"
+                : status.exists
+                  ? `made ${when(status.created_at)} · last used ${when(status.last_used_at)}`
+                  : "lets a Shortcut add pictures to your library.")}
+          </span>
+        </div>
+      </Row>
+      {token && (
+        <div className="px-4 py-3 space-y-2.5 text-left">
+          <p className="m-0 text-footnote text-ink-soft">
+            Copy this key into your Shortcut now — it won't be shown again.
+          </p>
+          <CopyField label="Key" value={token} copied={copied === "key"} onCopy={() => copy("key", token)} />
+          <CopyField label="URL" value={endpoint} copied={copied === "url"} onCopy={() => copy("url", endpoint)} />
+          <p className="m-0 text-footnote text-ink-fade">
+            In the Shortcut: <b>Get Contents of URL</b> → method POST → header{" "}
+            <code>Authorization</code> = <code>Bearer &lt;key&gt;</code> → request body Form, with the picture in a
+            field named <code>file</code>.
+          </p>
+        </div>
+      )}
+    </Section>
+  );
+}
+
+function CopyField({ label, value, copied, onCopy }: { label: string; value: string; copied: boolean; onCopy: () => void }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="w-9 shrink-0 text-footnote text-ink-fade">{label}</span>
+      <input
+        readOnly
+        value={value}
+        onFocus={(e) => e.currentTarget.select()}
+        className="min-w-0 flex-1 rounded border border-line-strong bg-paper-tint px-2 py-1 font-mono text-[12.5px] text-ink outline-none focus:border-accent"
+      />
+      <button type="button" className="btn inline-flex items-center gap-1" onClick={onCopy} aria-label={`Copy ${label}`}>
+        {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+      </button>
+    </div>
   );
 }
 

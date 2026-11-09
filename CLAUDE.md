@@ -13,7 +13,7 @@ Each person's library is **private by default**; an album can be marked **shared
 | Backend + host | **One** Cloudflare Worker `loft-api` serves BOTH the SPA (static `[assets]` from `web/dist`, SPA-fallback routing) AND the `/api` + `/img` routes — same origin. TypeScript + Hono. **No Cloudflare Pages.** |
 | Frontend | React 18 + Vite + TypeScript + Tailwind v3 (+ `@tailwindcss/forms`,`/typography`) + Radix UI + Framer Motion + React Router + Dexie (IndexedDB) |
 | Design | Apple's design language — system palette (systemBlue, system greys), the `-apple-system` font stack (no webfont), vibrancy/blur chrome, hairline separators. Light + dark, defaulting to the OS appearance. |
-| Auth | Cloudflare Access wrapping the Worker domain; policy lists both emails from `ALLOWED_EMAILS`. Identity resolves to a `users` row (`u1` = first email, `u2` = second). |
+| Auth | Cloudflare Access guards **only `/login`**; passing it mints Loft's own year-long, sliding `loft_session` cookie (HMAC, `SESSION_SECRET`). Identity resolves to a `users` row (`u1` = first email, `u2` = second). Shortcut uploads use a per-person upload key instead. |
 | PWA | vite-plugin-pwa (service worker + web manifest, install on phone/desktop) |
 
 > **Why single Worker (not Pages + separate API):** same-origin avoids iOS Safari's cross-site cookie blocking that broke Cloudflare Access auth. Deployed at `loft-api.<your-subdomain>.workers.dev`. Don't propose splitting it back apart.
@@ -26,13 +26,13 @@ loft/
 │   └── src/types.ts
 ├── workers/          Cloudflare Worker — API + static asset host
 │   ├── wrangler.toml         [assets] → ../web/dist (SPA fallback), R2/D1 bindings, daily cron
-│   ├── migrations/           0001_init.sql, 0002_updated_at.sql, 0003_multi_user.sql, 0004_media_version.sql
+│   ├── migrations/           0001_init.sql … 0004_media_version.sql, 0005_upload_keys.sql
 │   └── src/
 │       ├── index.ts          Hono app + cron purge handler
-│       ├── auth.ts           Cf-Access header check
+│       ├── auth.ts           session cookie → verified Access JWT → 401
 │       ├── env.ts            Env interface (bindings)
-│       ├── lib/{db,r2,users}.ts
-│       └── routes/{upload,photos,img,sync,albums,me}.ts
+│       ├── lib/{db,r2,users,session,access,uploadKeys,media}.ts
+│       └── routes/{upload,photos,img,sync,albums,me,push,uploadKey}.ts
 └── web/              React PWA frontend (built to web/dist, served by the Worker)
     ├── index.html            favicon + apple-touch-icon + iOS web-app meta tags
     ├── vite.config.ts        PWA manifest/icons; dev-only proxy /api + /img → :8787
@@ -91,7 +91,7 @@ npm run typecheck
 
 **R2 keys:** `u/<owner-id>/{orig,preview,thumb}/<uuid>.<ext>` — all immutable, `Cache-Control: public, max-age=31536000, immutable`. Objects written before migration `0003` keep their flat `orig/…` keys and still work, because every read resolves the key off the D1 row rather than reconstructing it.
 
-## API Routes (all behind Cloudflare Access in prod, bypassed when `env.ENV === "dev"`)
+## API Routes (session-cookie authenticated in prod, bypassed when `env.ENV === "dev"`; `/api/push` uses an upload key)
 
 | Method | Path | Purpose |
 |---|---|---|
@@ -107,6 +107,10 @@ npm run typecheck
 | PATCH | `/api/albums/:id` | rename / share / unshare — **owner only** |
 | DELETE | `/api/albums/:id` | delete the album — **owner only**; photos are unfiled, never deleted |
 | GET / PATCH | `/api/me` | current user + everyone's display names |
+| GET / POST / DELETE | `/api/upload-key` | your Shortcut upload key: status / make (replaces, returns token once) / revoke |
+| POST | `/api/push` | **upload-key auth** (`Authorization: Bearer loft_…`), not the session. One photo/video as form field `file` (or raw body). Stores a placeholder thumb; see `docs/APPLE_SHORTCUT.md` |
+| GET | `/login` | **the only Access-guarded path.** Verifies the Access JWT, sets `loft_session`, redirects to `?next=` |
+| POST | `/logout` | clears `loft_session` + `CF_Authorization` |
 | GET | `/img/{thumb,preview,orig}/:id` | R2 serve, edge-cached |
 | GET | `/health` | unauthenticated probe |
 
@@ -161,8 +165,9 @@ Constants in `shared/src/types.ts`: `THUMB_PX=512`, `PREVIEW_PX=2048`, `JPEG_QUA
 3. `wrangler d1 create loft-db` → paste `database_id` into `workers/wrangler.toml`
 4. `npm run db:migrate:remote` (applies all migrations to prod D1)
 5. `npm run deploy` (builds `web/dist`, then `wrangler deploy` ships the Worker **with** the static assets)
-6. `wrangler secret put ALLOWED_EMAILS` → paste `you@example.com,partner@example.com` (your own address FIRST — see below). It is a **secret**, not a `[vars]` entry, because this repo is public. It must also be a secret rather than a dashboard *Variable*: `wrangler deploy` replaces the plaintext vars bag with whatever is in `wrangler.toml`, so a dashboard-edited variable is wiped on the next deploy — secrets survive.
-7. CF Zero Trust → Access app → wrap the single Worker domain (`loft-api.<your-subdomain>.workers.dev`), policy: **both** addresses. This is a second, independent gate — until it lists the partner, they never reach the Worker at all. No Pages project exists.
+6. Secrets: `wrangler secret put SESSION_SECRET` (any long random string, e.g. `openssl rand -base64 48`), `ACCESS_TEAM_DOMAIN` (e.g. `myteam`), `ACCESS_AUD` (the Access app's AUD tag). Prod returns 500 `misconfigured` until all three exist.
+7. `wrangler secret put ALLOWED_EMAILS` → paste `you@example.com,partner@example.com` (your own address FIRST — see below). It is a **secret**, not a `[vars]` entry, because this repo is public. It must also be a secret rather than a dashboard *Variable*: `wrangler deploy` replaces the plaintext vars bag with whatever is in `wrangler.toml`, so a dashboard-edited variable is wiped on the next deploy — secrets survive.
+8. CF Zero Trust → Access app → self-hosted, domain `loft-api.<your-subdomain>.workers.dev`, **path `login`** (only that path), policy: **both** addresses. Everything else is gated by the Worker's own cookie, so the Access session length no longer matters. No Pages project exists.
 
 ## Known Gotchas
 
@@ -186,7 +191,12 @@ Constants in `shared/src/types.ts`: `THUMB_PX=512`, `PREVIEW_PX=2048`, `JPEG_QUA
 - **Theme is applied by an inline script in `index.html` before first paint.** Without it a dark install flashes the light room for a frame while React boots.
 - **`/api/me` returns the configured roster, not just provisioned users.** `users` rows are written on a person's first request, so a freshly deployed two-person Loft would look single-user until the second person visited — hiding every sharing control behind the very thing it was needed for. Ids are positional, so an allowed email's id is knowable in advance; entries with no row come back `pending: true`.
 - **`ALLOWED_EMAILS` is an encrypted secret, not a `[vars]` entry.** The repo is public and the value is two real personal addresses. A dashboard *Variable* would not survive — `wrangler deploy` overwrites the plaintext vars bag from `wrangler.toml` — so it has to be `wrangler secret put`. `env.ALLOWED_EMAILS` reads identically either way, so there is no code difference. Local dev gets it from `workers/.dev.vars`.
-- **`workers/wrangler.toml` is gitignored; `wrangler.toml.example` is the committed template.** The real file holds `database_id`, which names a specific database in a specific account, and this repo is public. Wrangler has no env-var substitution in its config (verified — `${VAR}` is passed through literally), so the id has to be a real value in a real file. **Any binding added to `wrangler.toml` must be mirrored into the example**, or a fresh clone deploys a Worker missing it. This public repo ships them as placeholders (`YOUR_D1_DATABASE_ID`, `you@example.com`); `account_id` is omitted entirely (Wrangler reads `CLOUDFLARE_ACCOUNT_ID` / auto-detects from login). A *real* secret (third-party API key, etc.) goes via `wrangler secret put NAME` (encrypted on CF, accessed as `env.NAME`); local dev equivalents go in `workers/.dev.vars` (gitignored). The wrangler login token lives in `~/Library/Preferences/.wrangler/config/` — never in the repo. Loft currently has zero secrets.
+- **`workers/wrangler.toml` is gitignored; `wrangler.toml.example` is the committed template.** The real file holds `database_id`, which names a specific database in a specific account, and this repo is public. Wrangler has no env-var substitution in its config (verified — `${VAR}` is passed through literally), so the id has to be a real value in a real file. **Any binding added to `wrangler.toml` must be mirrored into the example**, or a fresh clone deploys a Worker missing it. This public repo ships them as placeholders (`YOUR_D1_DATABASE_ID`, `you@example.com`); `account_id` is omitted entirely (Wrangler reads `CLOUDFLARE_ACCOUNT_ID` / auto-detects from login). A *real* secret (third-party API key, etc.) goes via `wrangler secret put NAME` (encrypted on CF, accessed as `env.NAME`); local dev equivalents go in `workers/.dev.vars` (gitignored). The wrangler login token lives in `~/Library/Preferences/.wrangler/config/` — never in the repo. Real secrets: `SESSION_SECRET` (plus `ACCESS_TEAM_DOMAIN`/`ACCESS_AUD`, kept as secrets for uniformity — not sensitive).
+
+- **Access guards only `/login`, so `Cf-Access-Authenticated-User-Email` is client-controlled everywhere else.** The Worker never reads it; it accepts only Loft's HMAC cookie or a signature-verified Access JWT (header or `CF_Authorization` cookie, checked against `ACCESS_AUD` + the team's certs). Accepting the JWT on every path is also what makes the cutover painless: while Access still wraps the whole domain, each request mints the cookie.
+- **The session cookie is only (re)issued on `/api/*` responses**, never `/img/*` — an image may come straight from `caches.default`, whose headers are immutable. `/api/me` runs on every boot, so the cookie still slides. Revoke one person by removing them from `ALLOWED_EMAILS` (checked per request); rotate `SESSION_SECRET` to sign everyone out.
+- **The service worker must not serve the app shell for `/login`** (`navigateFallbackDenylist` in `vite.config.ts`), or the Access sign-in never runs.
+- **Shortcut pushes have no thumbnail.** `/api/push` stores a placeholder SVG and `width/height = NULL`; NULL dimensions is the "needs a real thumbnail" marker. `backfillImageThumbnails` (on boot and on each 60 s poll, any device) runs the normal `prepareUpload` on the original and posts to `/api/photos/:id/thumbnail`, which also fills a *missing* `taken_at`/`year_month`/`exif_json` from EXIF (never overrides one). HEIC only decodes in Safari, so other browsers add it to the skip list and leave it for the phone.
 
 ## Out of Scope (v2+)
 
